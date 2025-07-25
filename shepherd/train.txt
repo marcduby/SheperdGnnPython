@@ -1,0 +1,4 @@
+python pretrain.py \
+        --edgelist KG_edgelist_mask.txt \
+        --node_map KG_node_map.txt \
+        --save_dir checkpoints/

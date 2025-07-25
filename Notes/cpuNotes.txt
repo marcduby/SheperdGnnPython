@@ -1,0 +1,25 @@
+
+
+/home/javaprog/Apps/VirtualEnvs/sheperd_311/lib/python3.11/site-packages/pytorch_lightning/trainer/connectors/accelerator_connector.py:478: LightningDeprecationWarning: Setting `Trainer(gpus=0)` is deprecated in v1.7 and will be removed in v2.0. Please use `Trainer(accelerator='gpu', devices=0)` instead.
+  rank_zero_deprecation(
+GPU available: False, used: False
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+`Trainer(limit_train_batches=1.0)` was configured so 100% of the batches per epoch will be used..
+`Trainer(limit_val_batches=1.0)` was configured so 100% of the batches will be used..
+get dataloaders
+
+  | Name        | Type       | Params
+-------------------------------------------
+0 | node_emb    | Embedding  | 215 M 
+1 | convs       | ModuleList | 13.6 M
+2 | batch_norms | ModuleList | 6.1 K 
+3 | layer_norms | ModuleList | 4     
+-------------------------------------------
+229 M     Trainable params
+0         Non-trainable params
+229 M     Total params
+916.632   Total estimated model params size (MB)
+Sanity Checking DataLoader 0:   0%|                                                                                                                                                  | 0/2 [00:00<?, ?it/s]/home/javaprog/Apps/VirtualEnvs/sheperd_311/lib/python3.11/site-packages/pytorch_lightning/utilities/data.py:83: UserWarning:
+
