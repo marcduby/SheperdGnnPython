@@ -11,7 +11,7 @@ from torch.nn import TransformerEncoderLayer
 import numpy as np
 from scipy.stats import rankdata
 
-from allennlp.modules.attention import CosineAttention, BilinearAttention, AdditiveAttention, DotProductAttention
+from attention import CosineAttention, BilinearAttention, AdditiveAttention, DotProductAttention
 
 
 from utils.loss_utils import MultisimilarityCriterion, _construct_labels, unique, _construct_disease_labels

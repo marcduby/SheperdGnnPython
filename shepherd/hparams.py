@@ -1,3 +1,5 @@
+import torch
+
 import project_config
 
 ####################################################################
@@ -27,7 +29,7 @@ def get_pretrain_hparams(args, combined=False):
                'pred_threshold': 0.5,
                'negative_sampler_approach': 'by_edge_type',
                'filter_edges': True,
-               'n_gpus': 1,
+               'n_gpus': 1 if torch.cuda.is_available() else 0,
                'num_workers': 4,
                'batch_size': 512,
                'inference_batch_size': 64,
@@ -108,15 +110,15 @@ def get_train_hparams(args):
                'gradclip': 1.0,
                'inference_batch_size': 64,
                'max_epochs': 100, 
-               'n_gpus': 1, 
+               'n_gpus': 1 if torch.cuda.is_available() else 0,
                'num_workers': 4,
                'wandb_save_dir' : project_config.PROJECT_DIR / 'wandb',
-               'precision': 16, 
+               'precision': 16 if torch.cuda.is_available() else 32,
                'reload_dataloaders_every_n_epochs': 0,
                'profiler': 'simple',
                'pin_memory': False,
                'time': False,
-               'log_gpu_memory': True,
+               'log_gpu_memory': torch.cuda.is_available(),
                'debug': False, 
                'plot_softmax': False,
                'plot_intrain': False, # Flag to plot gene rank vs. in train sets

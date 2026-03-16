@@ -34,7 +34,8 @@ from shepherd.samplers import PatientNeighborSampler
 
 import preprocess
 from hparams import get_predict_hparams
-from train import get_model, load_patient_datasets, get_dataloaders
+from shepherd.train import get_model, load_patient_datasets, get_dataloaders
+from compat import trainer_accelerator_kwargs
 
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1" 
@@ -129,7 +130,7 @@ def predict(args):
     # Get patient model 
     model = get_model(args, hparams, None, all_data, edge_attr_dict,  n_nodes,load_from_checkpoint=True)
 
-    trainer = pl.Trainer(gpus=hparams['n_gpus'])
+    trainer = pl.Trainer(**trainer_accelerator_kwargs(hparams['n_gpus']))
     
     t1 = time.time()
     results = trainer.predict(model, dataloaders=dataloader)

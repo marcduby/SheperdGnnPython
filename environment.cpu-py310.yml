@@ -1,0 +1,8 @@
+name: shepherd-cpu-py310
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10.8
+  - pip>=24
+  - pip:
+      - -r requirements.cpu-py310.txt

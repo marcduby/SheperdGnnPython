@@ -1,0 +1,181 @@
+
+
+
+Goal:
+Port the mims-harvard/SHEPHERD repository to run on CPU with Python 3.10, with the smallest reasonable code and dependency changes, and produce a reproducible working setup plus a short migration note.
+
+Known repo facts:
+- The upstream README currently installs with:
+  - `conda env create -f environment.yml`
+  - `conda activate shepherd`
+  - `bash install_pyg.sh` :contentReference[oaicite:0]{index=0}
+- The checked-in environment is pinned to:
+  - `python=3.8.8`
+  - `pytorch=1.8.0`
+  - `pytorch-lightning==1.4.5` :contentReference[oaicite:1]{index=1}
+- The environment also includes GPU-era dependencies:
+  - `cudatoolkit=10.2.89`
+  - `faiss-gpu=1.7.0` :contentReference[oaicite:2]{index=2}
+- The pip section includes `allennlp==2.4.0`, which is also from that same older dependency era. :contentReference[oaicite:3]{index=3}
+
+Constraints:
+- Target runtime: CPU only
+- Target Python: 3.10
+- Prefer minimal code edits over full refactor
+- Preserve existing CLI entry points if possible:
+  - `pretrain.py`
+  - `train.py`
+  - `predict.py` :contentReference[oaicite:4]{index=4}
+
+Deliverables:
+1. A new CPU/Python-3.10 environment definition
+2. Any code patches needed for compatibility
+3. A `MIGRATION_CPU_PY310.md` file summarizing what changed
+4. A validation log showing at least import-level success and one smoke test command
+5. Do not remove original files unless necessary; add new files where possible
+
+Plan of attack:
+
+Step 1: inspect
+- Inspect:
+  - `environment.yml`
+  - `install_pyg.sh`
+  - `README.md`
+  - `shepherd/` package files
+  - any files importing:
+    - torch_geometric
+    - pytorch_lightning
+    - faiss
+    - allennlp
+    - `.cuda(`
+    - `device="cuda"`
+    - `Trainer(`
+    - deprecated Lightning hooks or arguments
+- Produce a short inventory of likely breakpoints before changing code
+
+Step 2: Create a new environment file
+- Add a new file named something like:
+  - `environment.cpu-py310.yml`
+- add in 'requirememnts.cpu-py310.txt' file to install environment using pip
+- Do NOT overwrite the original `environment.yml`
+- Build the new env around:
+  - Python 3.10
+  - CPU-only PyTorch
+  - a modern torch-geometric compatible with that PyTorch/Python combination
+- Remove CUDA-only packages from the new environment:
+  - `cudatoolkit`
+  - `faiss-gpu`
+- If FAISS is actually needed at runtime, replace with `faiss-cpu`
+- Keep package versions reasonably conservative to reduce breakage
+- Avoid carrying over unnecessary old notebook/visualization dependencies unless required by the code path
+
+Step 3: Replace the old PyG install flow
+- The upstream setup requires `bash install_pyg.sh`, which is part of the old install path. :contentReference[oaicite:5]{index=5}
+- Update the new setup so that `install_pyg.sh` is no longer needed for the Python 3.10 CPU path
+- Either:
+  - add a new install script for CPU/Python-3.10, or
+  - encode the needed packages directly in `environment.cpu-py310.yml` and 'requirememnts.cpu-py310.txt'
+- Document clearly which path is now the recommended one
+
+Step 4: Make code device-agnostic
+- Search all code for CUDA assumptions
+- Replace patterns like:
+  - `.cuda()`
+  - explicit `"cuda"` device literals
+  - GPU-only tensor creation
+- Use a single resolved device pattern such as:
+  - `device = torch.device("cuda" if torch.cuda.is_available() else "cpu")`
+  - then `.to(device)`
+- Ensure CPU execution works even when CUDA is unavailable
+
+Step 5: Update PyTorch Lightning usage
+- Inspect current Lightning usage and compare against the installed modern version
+- Patch the smallest set of Lightning API incompatibilities needed to run:
+  - trainer initialization arguments
+  - checkpoint callbacks
+  - logging hooks
+  - accelerator/devices settings
+  - any deprecated APIs
+- Preserve behavior as much as practical
+- If a newer Lightning package introduces too much churn, choose the newest version that still supports Python 3.10 with minimal patching
+
+Step 6: Update torch-geometric usage
+- Inspect imports and APIs used from PyG
+- Patch only what breaks under the chosen modern PyG version
+- Focus on:
+  - data loaders
+  - utility functions
+  - graph ops
+  - neighbor sampling or batching if present
+- Keep the code changes narrow and well-commented
+
+Step 7: Audit optional dependencies
+- Determine whether `allennlp` is actually required for:
+  - imports
+  - training
+  - prediction
+- If unused in the main path, remove it from the new environment
+- Determine whether FAISS is required in the CPU path
+- If optional and unused, remove it from the new environment
+- If required, keep the CPU equivalent only
+
+Step 8: Preserve original CLI behavior
+- Verify these commands still exist, though adapted to the new environment:
+  - `python pretrain.py ...`
+  - `python train.py ...`
+  - `python predict.py ...` :contentReference[oaicite:6]{index=6}
+- Avoid renaming public entry points unless absolutely necessary
+- If new flags are required for CPU behavior, keep them optional and default-safe
+
+Step 9: Add migration docs
+- Create `MIGRATION_CPU_PY310.md` with:
+  - summary of upstream pinned versions
+  - what was changed
+  - new install instructions
+  - known limitations
+  - smoke-test commands
+  - note on expected reproducibility differences from the original stack
+- Include a short “why” section:
+  - upstream pins Python 3.8.8 / PyTorch 1.8.0 / Lightning 1.4.5 and includes CUDA toolkit + faiss-gpu, which are not suitable for a straightforward CPU-only Python 3.10 setup. :contentReference[oaicite:7]{index=7}
+
+Step 10: Validate
+- Run, at minimum:
+  1. import smoke test for main modules
+  2. `python -m py_compile` or equivalent on changed files
+  3. one CLI help or dry-run command
+  4. ideally one small `predict.py` smoke test if data/config availability allows
+- Capture the exact commands and outputs in the migration note
+
+Success criteria:
+- A fresh environment can be created on CPU with Python 3.10
+- Core imports succeed
+- The repo no longer depends on CUDA packages for the new setup
+- At least one CLI entry point starts successfully
+- Changes are documented and minimal
+
+Implementation preferences:
+- Make small, reviewable commits or clearly separated edits
+- Prefer additive changes:
+  - new env file
+  - new migration note
+  - targeted compatibility patches
+- Do not silently change model behavior unless required for compatibility
+- Add comments where an edit is specifically for Python 3.10 / CPU / modern Lightning / modern PyG compatibility
+
+Suggested first commands:
+- inspect `environment.yml`, `install_pyg.sh`, `README.md`, and grep for:
+  - `cuda`
+  - `pytorch_lightning`
+  - `torch_geometric`
+  - `faiss`
+  - `allennlp`
+
+Expected output format from Codex:
+1. Brief inventory of breakpoints found
+2. Patch summary by file
+3. New environment file contents
+4. Migration note contents
+5. Validation results
+6. Any unresolved blockers
+
+

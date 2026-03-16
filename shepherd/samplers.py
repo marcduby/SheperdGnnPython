@@ -4,11 +4,10 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_sparse import SparseTensor
 from torch_cluster import random_walk
-from torch_geometric.data.sampler import EdgeIndex, Adj
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from torch_geometric.utils import add_self_loops, add_remaining_self_loops
-from torch_geometric.data import Data, DataLoader, NeighborSampler
+from torch_geometric.data import Data
 
 from typing import List, Optional, Tuple, NamedTuple, Union, Callable, Dict
 from collections import defaultdict
@@ -23,6 +22,18 @@ from utils.pretrain_utils import get_indices_into_edge_index, HeterogeneousEdgeI
 from sklearn.preprocessing import label_binarize
 
 import project_config
+
+
+class EdgeIndex(NamedTuple):
+    edge_index: Tensor
+    e_id: Optional[Tensor]
+    size: Tuple[int, int]
+
+
+class Adj(NamedTuple):
+    adj_t: SparseTensor
+    e_id: Optional[Tensor]
+    size: Tuple[int, int]
 
 
 class NeighborSampler(torch.utils.data.DataLoader):
@@ -685,6 +696,5 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
 
     def __repr__(self):
         return '{}(sizes={})'.format(self.__class__.__name__, self.sizes)
-
 
 

@@ -16,11 +16,7 @@ sys.path.insert(0, '..') # add project_config to path
 # Pytorch
 import torch
 import torch.nn as nn
-from torch_geometric.utils.convert import to_networkx, to_scipy_sparse_matrix
-from torch_geometric.data import Data, DataLoader, NeighborSampler
-from torch_geometric.utils import negative_sampling
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
 
 # Pytorch lightning
 import pytorch_lightning as pl
@@ -43,6 +39,7 @@ from shepherd.samplers import PatientNeighborSampler
 
 import preprocess
 from hparams import get_pretrain_hparams, get_train_hparams
+from compat import resolve_project_path, trainer_accelerator_kwargs
 
 
 import os
@@ -145,7 +142,7 @@ def get_dataloaders(hparams, all_data, nid_to_spl_dict, n_nodes, gene_phen_dis_n
         print("Using augment gene similarity: %s" % args.aug_sim)
     else: gene_similarity_dict=None
 
-    with open("/home/ema30/zaklab/rare_disease_dx/formatted_patients/degree_dict_8.9.21_kg.pkl", "rb") as input_file:
+    with open(project_config.KG_DIR / f'degree_dict_{project_config.CURR_KG}.pkl', "rb") as input_file:
         gene_deg_dict = pickle.load(input_file)
 
     if inference:
@@ -196,16 +193,17 @@ def get_dataloaders(hparams, all_data, nid_to_spl_dict, n_nodes, gene_phen_dis_n
 
 def get_model(args, hparams, node_hparams, all_data, edge_attr_dict, n_nodes, load_from_checkpoint=False):
     print("setting up model", hparams['model_type'])
+    best_ckpt_path = resolve_project_path(args.best_ckpt, project_config.PROJECT_DIR)
     # get patient model 
     if hparams['model_type'] == 'aligner':
         if load_from_checkpoint: 
-            comb_patient_model = CombinedGPAligner.load_from_checkpoint(checkpoint_path=str(Path(project_config.PROJECT_DIR /  args.best_ckpt)), 
+            comb_patient_model = CombinedGPAligner.load_from_checkpoint(checkpoint_path=str(best_ckpt_path), 
                                     edge_attr_dict=edge_attr_dict, all_data=all_data, n_nodes=n_nodes, node_ckpt = hparams["saved_checkpoint_path"], node_hparams=node_hparams)
         else:
             comb_patient_model = CombinedGPAligner(edge_attr_dict=edge_attr_dict, all_data=all_data, n_nodes=n_nodes, hparams=hparams, node_ckpt = hparams["saved_checkpoint_path"], node_hparams=node_hparams)
     elif hparams['model_type'] == 'patient_NCA':
         if load_from_checkpoint:
-            comb_patient_model = CombinedPatientNCA.load_from_checkpoint(checkpoint_path=str(Path(project_config.PROJECT_DIR) /  args.best_ckpt), 
+            comb_patient_model = CombinedPatientNCA.load_from_checkpoint(checkpoint_path=str(best_ckpt_path), 
                                     all_data=all_data, edge_attr_dict=edge_attr_dict, n_nodes=n_nodes, node_ckpt=hparams["saved_checkpoint_path"])
         else:
             comb_patient_model = CombinedPatientNCA(edge_attr_dict=edge_attr_dict, all_data=all_data, n_nodes=n_nodes, node_ckpt=hparams["saved_checkpoint_path"], hparams=hparams)
@@ -305,16 +303,14 @@ def train(args, hparams):
         limit_val_batches=1.0
 
     print('initialize trainer')
-    patient_trainer = pl.Trainer(gpus=hparams['n_gpus'], 
-                                logger=wandb_logger, 
+    patient_trainer = pl.Trainer(logger=wandb_logger, 
                                 max_epochs=hparams['max_epochs'], 
                                 callbacks=[patient_checkpoint_callback],
                                 profiler=hparams['profiler'],
-                                log_gpu_memory=hparams['log_gpu_memory'],
                                 limit_train_batches=limit_train_batches, 
                                 limit_val_batches=limit_val_batches,
-                                weights_summary="full",
-                                gradient_clip_val=hparams['gradclip'])
+                                gradient_clip_val=hparams['gradclip'],
+                                **trainer_accelerator_kwargs(hparams['n_gpus']))
 
     #  Train
     patient_trainer.fit(comb_patient_model, patient_train_dataloader, patient_val_dataloader)
@@ -356,7 +352,7 @@ def inference(args, hparams):
     # Get patient model 
     model = get_model(args, hparams, node_hparams, all_data, edge_attr_dict, n_nodes, load_from_checkpoint=True)
 
-    trainer = pl.Trainer(gpus=0, logger=wandb_logger)
+    trainer = pl.Trainer(logger=wandb_logger, **trainer_accelerator_kwargs(0))
     results = trainer.test(model, dataloaders=test_dataloader)
     print(results)
     print('---- RESULTS ----')
@@ -373,4 +369,3 @@ if __name__ == "__main__":
         inference(args, hparams)
     else:
         train(args, hparams)
-
