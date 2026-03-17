@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+# test with 
+# export SHEPHERD_DATA_DIR=/home/javaprog/Data/Broad/PortalAI/Sheperd/OriginalFromHU
 
 REPO_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = Path(os.environ.get("SHEPHERD_DATA_DIR", REPO_DIR / "data")).expanduser()
