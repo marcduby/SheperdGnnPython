@@ -216,7 +216,8 @@ def main():
     # read in mapping from old to current phenotypes
     hp_terms = pd.read_csv(project_config.KG_DIR / 'raw' / 'sources' / 'hpo' / 'hp_terms.csv')
     hp_map_dict = {'HP:' + ('0' * (7-len(str(int(hp_old))))) + str(int(hp_old)): 'HP:' + '0' * (7-len(str(int(hp_new)))) + str(int(hp_new)) for hp_old,hp_new in zip(hp_terms['id'], hp_terms['replacement_id'] ) if not pd.isnull(hp_new)}
-    orphanet_phenotypes.replace({"HPO_ID": hp_map_dict}, inplace=True)
+    # orphanet_phenotypes.replace({"HPO_ID": hp_map_dict}, inplace=True)
+    orphanet_phenotypes.replace({"HPO_ID": hp_map_dict}, inplace=False)
 
     orpha_phenotypes = orphanet_phenotypes['HPO_ID'].unique().tolist()
     orpha_diseases = orphanet_phenotypes['OrphaNumber'].unique().tolist() + orphanet_genes['OrphaNumber'].unique().tolist()

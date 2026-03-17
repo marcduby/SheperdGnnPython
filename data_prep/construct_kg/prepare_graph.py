@@ -131,9 +131,16 @@ def triadic_closure(graph):
     new_relations = merged_relations.reset_index(drop=True)
     new_relations['relation'] = 'phenotype_protein'
     new_relations['display_relation'] = 'associated with'
-    new_relations.drop(columns=['relation_dp', 'display_relation_dp'], inplace=True)
-    new_relations.rename(columns={'y_id':'x_id', 'y_idx':'x_idx', 'y_type':'x_type', 'y_name':'x_name', 'y_source':'x_source'}, inplace=True)
-    new_relations.rename(columns={'y_id_dp':'y_id', 'y_idx_dp':'y_idx', 'y_type_dp':'y_type', 'y_name_dp':'y_name','y_source_dp':'y_source' }, inplace=True)
+
+    # new_relations.drop(columns=['relation_dp', 'display_relation_dp'], inplace=True)
+    new_relations.drop(columns=['relation_dp', 'display_relation_dp'], inplace=False)
+
+    # new_relations.rename(columns={'y_id':'x_id', 'y_idx':'x_idx', 'y_type':'x_type', 'y_name':'x_name', 'y_source':'x_source'}, inplace=True)
+    new_relations.rename(columns={'y_id':'x_id', 'y_idx':'x_idx', 'y_type':'x_type', 'y_name':'x_name', 'y_source':'x_source'}, inplace=False)
+
+    # new_relations.rename(columns={'y_id_dp':'y_id', 'y_idx_dp':'y_idx', 'y_type_dp':'y_type', 'y_name_dp':'y_name','y_source_dp':'y_source' }, inplace=True)
+    new_relations.rename(columns={'y_id_dp':'y_id', 'y_idx_dp':'y_idx', 'y_type_dp':'y_type', 'y_name_dp':'y_name','y_source_dp':'y_source' }, inplace=False)
+
     triadic_closure_graph = pd.concat([graph, new_relations], ignore_index=True)
     print(f'After triadic closure, pre-dedup - Edges: {len(triadic_closure_graph["relation"].tolist())}')
 
