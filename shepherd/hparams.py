@@ -34,7 +34,7 @@ def get_pretrain_hparams(args, combined=False):
                'batch_size': 512,
                'inference_batch_size': 64,
                'neighbor_sampler_sizes': [15, 10, 5],
-               'max_epochs': 200,
+               'max_epochs': args.max_epochs if not combined else 200,
                'gradclip': 1.0,
                'lr_factor': 0.01,
                'lr_patience': 1000,
@@ -48,7 +48,7 @@ def get_pretrain_hparams(args, combined=False):
                'wandb_save_dir': project_config.PROJECT_DIR / 'wandb' / 'preprocess',
                'log_every_n_steps': 10,
                'time': False,
-               'debug': False
+               'debug': getattr(args, 'debug', False)
         }
     
     print('Pretrain hparams: ', hparams)

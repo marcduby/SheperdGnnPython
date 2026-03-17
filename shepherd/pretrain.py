@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument('--dropout', type=float, default=0.3, help='Dropout')
     parser.add_argument('--lr', default=0.0001, type=float)
     parser.add_argument('--max_epochs', default=1000, type=int)
+    parser.add_argument('--debug', action='store_true')
     
     # Resume with best checkpoint
     parser.add_argument('--resume', default="", type=str)
@@ -100,11 +101,13 @@ def train(args, hparams):
 
     if hparams['debug']:
         limit_train_batches = 1
-        limit_val_batches = 1.0 
+        limit_val_batches = 1
+        limit_test_batches = 1
         hparams['max_epochs'] = 3
     else:
         limit_train_batches = 1.0
-        limit_val_batches = 1.0 
+        limit_val_batches = 1.0
+        limit_test_batches = 1.0
 
     trainer = pl.Trainer(logger=wandb_logger, 
                          max_epochs=hparams['max_epochs'], 
@@ -114,6 +117,7 @@ def train(args, hparams):
                          log_every_n_steps=hparams['log_every_n_steps'],
                          limit_train_batches=limit_train_batches, 
                          limit_val_batches=limit_val_batches,
+                         limit_test_batches=limit_test_batches,
                          **trainer_accelerator_kwargs(hparams['n_gpus']),
                         ) 
     train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hparams, all_data)
@@ -122,7 +126,8 @@ def train(args, hparams):
     trainer.fit(model, train_dataloader, val_dataloader)
     
     # Test
-    trainer.test(ckpt_path='best', test_dataloaders=test_dataloader)
+    ckpt_path = 'best' if checkpoint_callback.best_model_path else None
+    trainer.test(ckpt_path=ckpt_path, dataloaders=test_dataloader)
 
 @torch.no_grad()
 def save_embeddings(args, hparams):

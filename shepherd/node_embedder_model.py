@@ -125,11 +125,12 @@ class NodeEmbeder(pl.LightningModule):
 
             x, (edge_i, alpha) = self.convs[i]((x, x_target), edge_index, return_attention_weights=True)
 
-            edge_i = edge_i.detach().cpu()
-            alpha = alpha.detach().cpu()
-            edge_i[0,:] = n_ids[edge_i[0,:]]
-            edge_i[1,:] = n_ids[edge_i[1,:]]
-            gat_attn.append((edge_i, alpha))
+            # Avoid mutating tensors returned by PyG attention hooks in place.
+            edge_i_cpu = edge_i.detach().cpu()
+            mapped_edge_i = torch.stack(
+                [n_ids[edge_i_cpu[0]].detach().cpu(), n_ids[edge_i_cpu[1]].detach().cpu()]
+            )
+            gat_attn.append((mapped_edge_i, alpha.detach().cpu().clone()))
 
             # Normalize
             if i != self.n_layers - 1:
@@ -423,4 +424,3 @@ class NodeEmbeder(pl.LightningModule):
             norm_loss = loss
 
         return norm_loss 
-
