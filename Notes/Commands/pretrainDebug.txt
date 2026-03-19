@@ -1,0 +1,5 @@
+
+
+export WANDB_MODE=offline
+python3 pretrain.py --edgelist /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/knowledge_graph/8.9.21_kg/KG_edgelist_mask.txt --node_map /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/knowledge_graph/8.9.21_kg/KG_node_map.txt --save_dir /tmp/shepherd-smoke --max_epochs 3 --debug
+
