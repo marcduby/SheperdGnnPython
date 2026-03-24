@@ -1,0 +1,10 @@
+
+
+  python3 src/python/split_patient_jsonl.py \
+    --train-input /Users/mduby/Data/Broad/PortalAI/Sheperd/ZippedFromHU/disease_split_train_sim_patients_8.9.21_kg.txt \
+    --val-input /Users/mduby/Data/Broad/PortalAI/Sheperd/ZippedFromHU/disease_split_val_sim_patients_8.9.21_kg.txt \
+    --output-dir /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/patients/my_cohort \
+    --test-fraction 0.15 \
+    --split-source train_only \
+    --seed 33
+
