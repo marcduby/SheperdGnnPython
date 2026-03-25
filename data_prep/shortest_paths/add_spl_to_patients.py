@@ -139,7 +139,7 @@ def main():
 
     # get filenames
     spl_matrix_fname = project_config.MY_DATA_DIR / f'{args.save_prefix}_agg={args.agg_type}_spl_matrix.npy'
-    spl_index_fname = project_config.MY_DATA_DIR / f'{args.save_prefix}_spl_index_dict.pkl'
+    spl_index_fname = project_config.MY_DATA_DIR / f'{args.save_prefix}_agg={args.agg_type}_spl_index_dict.pkl'
 
     print(f'There are {len(patients)} patients in the dataset')
     patients_spl_matrix, spl_indexing = add_spl_info(patients, spl_matrix, hpo_to_idx_dict, ensembl_to_idx_dict, nid_to_spl_dict, min_spl, max_spl , all_gene_idx, args.agg_type, x_max)
@@ -150,4 +150,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
