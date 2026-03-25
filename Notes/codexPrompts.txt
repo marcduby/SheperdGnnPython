@@ -1,6 +1,22 @@
 
 
 
+
+20260317 - fix issue with data in cache being modified causing error
+Error:
+RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.LongTensor [8606, 4, 128]] is at version 2; expected version 0 instead. Hint: enable anomaly detection to find the operation that failed to compute its gradient, with torch.autograd.set_detect_anomaly(True).
+
+Prompt:
+write me a codex prompt to accomplish running the pretrain code
+
+Goal:
+run the pretrain code and fix the errors so that the code completes
+
+
+
+
+20260316 - convert
+
 Goal:
 Port the mims-harvard/SHEPHERD repository to run on CPU with Python 3.10, with the smallest reasonable code and dependency changes, and produce a reproducible working setup plus a short migration note.
 

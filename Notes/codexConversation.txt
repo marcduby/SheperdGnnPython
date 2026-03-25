@@ -1,0 +1,605 @@
+
+
+-- NOTE: file inputs in reverse order of conversation, so newer at top
+
+20260320 - what files to rebuild for new KG edges and/or patient data
+Yes. The repo’s rebuild path for those two files is:
+
+1. Build the KG shortest-path matrix
+2. Derive the patient-level SPL artifacts from it
+
+The exact scripts are:
+
+- `data_prep/shortest_paths/shortest_paths.py`
+- `data_prep/shortest_paths/add_spl_to_patients.py`
+
+What each one does:
+
+- `shortest_paths.py`
+  - Reads the KG
+  - Computes all-pairs shortest paths
+  - Writes `KG_shortest_path_matrix_onlyphenotypes.npy` in `project_config.KG_DIR`
+
+- `add_spl_to_patients.py`
+  - Reads your patient JSONL files
+  - Reads `KG_shortest_path_matrix_onlyphenotypes.npy`
+  - Aggregates phenotype-to-gene shortest path values per patient
+  - Writes:
+    - `*_spl_matrix.npy`
+    - `*_spl_index_dict.pkl`
+
+The output naming is defined directly in `data_prep/shortest_paths/add_spl_to_patients.py`:
+
+- Matrix:
+  - `project_config.MY_DATA_DIR / f'{args.save_prefix}_agg={args.agg_type}_spl_matrix.npy'`
+
+- Index dict:
+  - `project_config.MY_DATA_DIR / f'{args.save_prefix}_spl_index_dict.pkl'`
+
+  
+
+
+20260318 - explain pkl files
+
+
+Q =========================
+
+ I added rebuild_kg_lookup_pkls.py and ran it against your current data root.
+
+  It generated these files under /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/knowledge_graph/8.9.21_kg:
+
+  - hpo_to_idx_dict_8.9.21_kg.pkl
+  - hpo_to_name_dict_8.9.21_kg.pkl
+  - ensembl_to_idx_dict_8.9.21_kg.pkl
+  - mondo_to_idx_dict_8.9.21_kg.pkl
+  - mondo_to_name_dict_8.9.21_kg.pkl
+  - degree_dict_8.9.21_kg.pkl
+
+  Usage is:
+
+  export SHEPHERD_DATA_DIR=/path/to/data-root
+  . ~/Energy/VirtualEnv/sheperdgnn_310/bin/activate
+  python rebuild_kg_lookup_pkls.py
+
+  This only covers the cheap KG-derived files. It does not generate:
+
+  - preprocess/orphanet/orphanet_to_mondo_dict.pkl
+  - patient JSONL files
+  - *_spl_matrix.npy
+  - *_spl_index_dict.pkl
+  - checkpoints/pretrain.ckpt
+
+  If you want, I can rerun check_train_inputs.py now so you can see exactly what remains missing after generating these KG lookup files.
+
+Q =========================
+
+The ones that can be rebuilt cheaply from the already preprocessed KG files are mostly the simple node-index maps.
+
+  From KG_node_map.txt, you can regenerate:
+
+  - hpo_to_idx_dict_8.9.21_kg.pkl
+      - map HPO node_id to node_idx for rows with node_type == effect/phenotype
+  - hpo_to_name_dict_8.9.21_kg.pkl
+      - map HPO node_id to node_name
+  - ensembl_to_idx_dict_8.9.21_kg.pkl
+      - map Ensembl node_id to node_idx for rows with node_type == gene/protein
+  - mondo_to_idx_dict_8.9.21_kg.pkl
+      - map MONDO node_id to node_idx for rows with node_type == disease
+  - mondo_to_name_dict_8.9.21_kg.pkl
+      - map MONDO node_id to node_name
+
+  Likely also rebuildable cheaply from the edge list plus node map:
+
+  - degree_dict_8.9.21_kg.pkl
+      - count node degree from KG_edgelist_mask.txt
+
+  Why these are “cheap”:
+
+  - they only require reading KG_node_map.txt and maybe KG_edgelist_mask.txt
+  - no ontology traversal
+  - no shortest-path computation
+  - no external metadata beyond what is already in the KG release
+
+  Not in this cheap category:
+
+  - orphanet_to_mondo_dict.pkl
+      - needs external disease mapping logic/source
+  - *_spl_matrix.npy
+  - *_spl_index_dict.pkl
+      - require shortest-path preprocessing over your patient cohort
+
+  So if you only wanted to remove some preprocessing burden, the low-hanging fruit is replacing those KG lookup .pkl files with on-the-fly builds from KG_node_map.txt.
+
+  If you want, I can write a small script that regenerates those 6 cheap KG mapping files from your current KG_node_map.txt and KG_edgelist_mask.txt.
+
+
+
+
+Q =========================
+
+› why are all these pkl files needed if they can be generated from the graph in real time
+
+
+• Because the repo is written to consume a preprocessed KG, not to rebuild all derived structures at runtime.
+
+  There are two different reasons.
+
+  First, some .pkl files are not just “graph caches”; they are semantic lookup tables the raw edge list does not fully provide. Examples:
+
+  - hpo_to_idx_dict_*.pkl
+  - ensembl_to_idx_dict_*.pkl
+  - mondo_to_idx_dict_*.pkl
+  - orphanet_to_mondo_dict.pkl
+
+  These let the patient loader turn external identifiers from your JSONL files into the exact node indices used by the KG. The model needs that alignment to be stable and identical across runs. In
+  this codebase, shepherd/dataset.py loads those directly instead of reconstructing them every time.
+
+  Second, some files are expensive derived features that would be slow to recompute online:
+
+  - degree_dict_*.pkl
+  - *_spl_matrix.npy
+  - *_spl_index_dict.pkl
+
+  The SPL files are the main example. They encode shortest-path-derived features used by train.py and predict.py. Recomputing shortest paths from each patient phenotype set to candidate genes
+  during training would be much slower and would complicate batching a lot. Precomputing them makes training deterministic and tractable.
+
+  So the short answer is:
+
+  - some .pkl files hold identifier mappings and ontology mappings that the model needs in exact preprocessed form
+  - others are performance-oriented cached graph features
+  - the repo chose offline preprocessing for reproducibility and speed, not on-the-fly graph derivation
+
+  Could they be generated at runtime? In principle, yes for some of them.
+  But in this repo:
+
+  - the code does not implement that path
+  - doing it online would slow training/prediction
+  - it would also make data preparation less explicit and easier to get wrong
+
+  If you want, I can separate the required files into:
+
+  1. “can be rebuilt cheaply from KG_node_map.txt”
+  2. “need external ontology/data mappings”
+  3. “expensive precomputed features”
+
+
+
+20260318 - getting patient data for training (post pre_train on KG) and how to integrate
+
+
+
+
+• I’m pulling the repo’s dataset instructions so I can answer from the actual project sources, including what is publicly available and what is not.
+• Explored
+  └ Read README.md
+    Search Harvard Dataverse|MyGene2|UDN|unable to provide|simulated rare disease patients|patient privacy in README.md
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• For this repo, the public training patient data comes from the SHEPHERD dataset release on Harvard Dataverse, referenced in README.md. The repo says the downloadable training data includes:
+  - disease-split simulated patients
+  - MyGene2 patients
+  - the rare disease knowledge graph
+  It also says the UDN patient data is not released because of privacy constraints, again in README.md.
+  So your options are:
+  - Use the public Harvard Dataverse release the README points to: https://doi.org/10.7910/DVN/TZTPFL
+  - Use the simulated patient generation source mentioned in README.md: https://github.com/EmilyAlsentzer/rare-disease-simulation
+  - Bring your own cohort in SHEPHERD’s JSONL format, described in data_prep/README.md
+  If your goal is causal gene discovery training, your own patient file needs at least:
+  - id
+  - positive_phenotypes
+  - all_candidate_genes
+  - true_genes
+  If you want, I can give you a concrete directory layout and file naming scheme for dropping your own cohort into this repo so train.py can use it.
+› give me a concrete directory layout and file naming scheme for dropping your own cohort into this repo so train.py can use it.
+• Use this layout under your data root:
+  $SHEPHERD_DATA_DIR/
+  ├── knowledge_graph/
+  │   └── 8.9.21_kg/
+  │       ├── KG_edgelist_mask.txt
+  │       ├── KG_node_map.txt
+  │       ├── hpo_to_idx_dict_8.9.21_kg.pkl
+  │       ├── ensembl_to_idx_dict_8.9.21_kg.pkl
+  │       ├── mondo_to_idx_dict_8.9.21_kg.pkl
+  │       └── ...
+  ├── patients/
+  │   └── my_cohort/
+  │       ├── train.jsonl
+  │       ├── val.jsonl
+  │       ├── test.jsonl
+  │       ├── test_agg=mean_spl_matrix.npy
+  │       └── test_agg=mean_spl_index_dict.pkl
+  ├── preprocess/
+  │   └── orphanet/
+  │       └── orphanet_to_mondo_dict.pkl
+  └── checkpoints/
+  Concrete file naming that fits this repo cleanly:
+  - train patients: patients/my_cohort/train.jsonl
+  - validation patients: patients/my_cohort/val.jsonl
+  - test patients: patients/my_cohort/test.jsonl
+  - SPL matrix: patients/my_cohort/test_agg=mean_spl_matrix.npy
+  - SPL index: patients/my_cohort/test_agg=mean_spl_index_dict.pkl
+  Then set these in project_config.py:
+  MY_DATA_DIR = Path("my_cohort")
+  MY_TRAIN_DATA = MY_DATA_DIR / "train.jsonl"
+  MY_VAL_DATA = MY_DATA_DIR / "val.jsonl"
+  MY_TEST_DATA = MY_DATA_DIR / "test.jsonl"
+  MY_SPL_DATA = MY_DATA_DIR / "test_agg=mean_spl_matrix.npy"
+  MY_SPL_INDEX_DATA = MY_DATA_DIR / "test_agg=mean_spl_index_dict.pkl"
+  And run with:
+  export SHEPHERD_DATA_DIR=/path/to/data-root
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --saved_node_embeddings_path checkpoints/pretrain.ckpt
+  Important repo-specific detail:
+  - train.py prepends PROJECT_DIR / 'patients' before these paths, so MY_* should be relative paths like my_cohort/train.jsonl, not absolute paths.
+  For causal gene discovery, each JSONL line should minimally look like:
+  {"id":"p1","positive_phenotypes":["HP:0001250"],"all_candidate_genes":["ENSG00000123415","ENSG00000169174"],"true_genes":["ENSG00000169174"]}
+  If you want, I can patch project_config.py to use a my_cohort/ layout directly.
+
+› what are the pkl files for and will those be generated by pre_train.py or train.py
+• No. Those .pkl files are input artifacts, not outputs of pretrain.py or train.py.
+  There are two main kinds in this repo:
+  1. KG lookup dictionaries
+  - Examples:
+      - hpo_to_idx_dict_8.9.21_kg.pkl
+      - ensembl_to_idx_dict_8.9.21_kg.pkl
+      - mondo_to_idx_dict_8.9.21_kg.pkl
+      - degree_dict_8.9.21_kg.pkl
+  - These map your HPO terms / Ensembl genes / MONDO diseases into KG node indices.
+  - They are loaded by shepherd/dataset.py and project_utils.py.
+  - They come from the KG preprocessing pipeline, not model training.
+  2. Patient shortest-path support files
+  - Examples:
+      - *_spl_matrix.npy
+      - *_spl_index_dict.pkl
+  - These are loaded by shepherd/train.py and shepherd/predict.py.
+  - They store shortest-path-length features between patient phenotypes / candidate genes and KG gene nodes.
+  - These are also preprocessing outputs, not training outputs.
+  So:
+  - pretrain.py trains KG embeddings from the graph.
+  - train.py trains the patient task model.
+  - Neither one generates those .pkl inputs for you.
+  The repo README explicitly says you need to generate the shortest-path files for your own patients using the code in data_prep/shortest_paths; see README.md and data_prep/README.md.
+  If you want, I can trace exactly which preprocessing scripts are supposed to create:
+  - the KG dictionary .pkl files
+  - the patient spl_matrix.npy / spl_index_dict.pkl files
+
+
+• For python train.py --patient_data my_data --run_type causal_gene_discovery ..., this is the practical file checklist.
+  Set:
+  export SHEPHERD_DATA_DIR=/path/to/data-root
+  Expected under $SHEPHERD_DATA_DIR:
+  knowledge_graph/
+  └── 8.9.21_kg/
+      ├── KG_edgelist_mask.txt
+      ├── KG_node_map.txt
+      ├── hpo_to_idx_dict_8.9.21_kg.pkl
+      ├── hpo_to_name_dict_8.9.21_kg.pkl
+      ├── ensembl_to_idx_dict_8.9.21_kg.pkl
+      ├── mondo_to_idx_dict_8.9.21_kg.pkl
+      ├── mondo_to_name_dict_8.9.21_kg.pkl
+      └── degree_dict_8.9.21_kg.pkl
+  Also expected:
+  preprocess/
+  └── orphanet/
+      └── orphanet_to_mondo_dict.pkl
+  Your cohort files under:
+  patients/
+  └── my_cohort/
+      ├── train.jsonl
+      ├── val.jsonl
+      ├── test.jsonl
+      ├── test_agg=mean_spl_matrix.npy
+      └── test_agg=mean_spl_index_dict.pkl
+  And in project_config.py:
+  MY_DATA_DIR = Path("my_cohort")
+  MY_TRAIN_DATA = MY_DATA_DIR / "train.jsonl"
+  MY_VAL_DATA = MY_DATA_DIR / "val.jsonl"
+  MY_TEST_DATA = MY_DATA_DIR / "test.jsonl"
+  MY_SPL_DATA = MY_DATA_DIR / "test_agg=mean_spl_matrix.npy"
+  MY_SPL_INDEX_DATA = MY_DATA_DIR / "test_agg=mean_spl_index_dict.pkl"
+  Checkpoint input also required for train.py:
+  checkpoints/
+  └── pretrain.ckpt
+  or whatever path you pass as:
+  --saved_node_embeddings_path checkpoints/pretrain.ckpt
+  Minimum JSONL fields for causal gene discovery:
+  - id
+  - positive_phenotypes
+  - all_candidate_genes
+  - true_genes
+  Example line:
+  {"id":"p1","positive_phenotypes":["HP:0001250"],"all_candidate_genes":["ENSG00000123415","ENSG00000169174"],"true_genes":["ENSG00000169174"]}
+  If any of these are missing, likely failures are:
+  - missing KG .pkl: dataset initialization fails
+  - missing SPL files: train.py fails while loading SPL inputs
+  - missing pretrain.ckpt: model initialization fails
+  - missing all_candidate_genes or true_genes: causal-gene training cannot label examples correctly
+  If you want, I can turn this into a shell script that checks your data root and reports exactly what is missing.
+
+
+
+
+
+
+
+
+20260317 - fixing backward propagation error
+
+• The multi-epoch run found a real training-time bug: backward fails in epoch 0 with an in-place modification error. I’m tracing that now; the most likely culprit is the model mutating tensors
+  returned from PyG/GAT inside the forward path.
+• Explored
+  └ Read node_embedder_model.py, decoders.py
+    Search \.data\b|_=|\+=|-=|\*=|/=|masked_fill_|scatter_|index_put_|copy_|\.copy_\(|\[[^]]+\]\s*=|set_value_|detach\(\).*\n.*=|alpha|edge_i\[ in node_embedder_model.py
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• The most credible culprit is the attention-edge logging path in NodeEmbeder.forward(): it mutates the edge_index tensor returned from GATv2Conv after only detach().cpu(), which can still share
+  storage with tensors autograd expects to remain untouched. I’m removing that in-place mutation entirely.
+• Edited shepherd/node_embedder_model.py (+6 -6)
+    127
+    128 -            edge_i = edge_i.detach().cpu()
+    129 -            alpha = alpha.detach().cpu()
+    130 -            edge_i[0,:] = n_ids[edge_i[0,:]]
+    131 -            edge_i[1,:] = n_ids[edge_i[1,:]]
+    132 -            gat_attn.append((edge_i, alpha))
+    128 +            # Avoid mutating tensors returned by PyG attention hooks in place.
+    129 +            edge_i_cpu = edge_i.detach().cpu()
+    130 +            mapped_edge_i = torch.stack(
+    131 +                [n_ids[edge_i_cpu[0]].detach().cpu(), n_ids[edge_i_cpu[1]].detach().cpu()]
+    132 +            )
+    133 +            gat_attn.append((mapped_edge_i, alpha.detach().cpu().clone()))
+    134
+        ⋮
+    426          return norm_loss
+    426 -
+
+
+
+20260309 - shepherd conversion to python 3.10
+- 
+  Tip: Paste an image with Ctrl+V to attach it to your next message.
+› explain this cxodebase
+• I’m going to map the repo structure first, then read the key entry points and config so I can explain how the codebase is organized and what actually runs.
+• Ran pwd
+  └ /Users/mduby/Code/LlmWorkspace/SheperdGnnPython
+• Explored
+  └ List rg --files
+    Search AGENTS.md in ..
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• I have the file map. Next I’m reading the project docs and the training/inference entry points to identify the data flow, model components, and runtime scripts.
+• Explored
+  └ Read README.md, project_config.py, train.py, predict.py, Inference-README.md
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• The docs confirm the repo is organized around one knowledge-graph model with three task heads. I’m reading the dataset loader, graph preprocessing, and model classes now so I can explain the
+  internal architecture instead of just the CLI surface.
+• Explored
+  └ Read preprocess.py, patient_nca_model.py, dataset.py, gene_prioritization_model.py, hparams.py
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• I have enough of the model stack. I’m checking one layer lower for the graph encoder and one layer higher for the helper scripts so the explanation covers both the internals and the normal
+  workflow.
+• Explored
+  └ Read gp_aligner.py, node_embedder_model.py, patient_nca.py, project_utils.py, run_predict.sh
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• I’ve got the main runtime path. One last pass through the data-prep docs will let me explain what has to exist on disk for training and inference to work, because this repo depends heavily on
+  precomputed artifacts.
+• Explored
+  └ Read README.md, predict.py, train.py
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• This repo is a research codebase for SHEPHERD, a rare-disease diagnosis system built on a knowledge graph plus patient phenotype data. At a high level, it does three things: rank candidate
+  genes, find similar patients, and rank likely diseases. The center of the repo is the shepherd/ package; data_prep/ is for building or adapting datasets; project_config.py is the global path/
+  config switchboard.
+  The runtime flow is:
+  1. project_config.py defines where the knowledge graph, patients, checkpoints, and results live: project_config.py
+  2. Graph data is loaded from TSV files into a PyG Data object by preprocess_graph(): shepherd/preprocess.py
+  3. Patient JSONL files are loaded and converted from HPO / Ensembl / MONDO identifiers into KG node indices by PatientDataset: shepherd/dataset.py
+  4. A GATv2-based node encoder produces embeddings for graph nodes: shepherd/node_embedder_model.py
+  5. A task head consumes phenotype embeddings plus candidate genes, diseases, or other patients:
+      - Gene ranking uses GPAligner: shepherd/task_heads/gp_aligner.py
+      - Patient/disease retrieval uses PatientNCA: shepherd/task_heads/patient_nca.py
+  6. Training is orchestrated in train.py; prediction-only runs are in predict.py: shepherd/train.py, shepherd/predict.py
+  The model architecture is layered:
+  - NodeEmbeder learns graph node embeddings with 3 GATv2Conv layers and a relation-aware link-prediction decoder. That is the KG pretraining / auxiliary objective: shepherd/
+    node_embedder_model.py
+  - CombinedGPAligner wraps the node encoder plus a phenotype-to-gene aligner for causal gene discovery: shepherd/gene_prioritization_model.py
+  - CombinedPatientNCA wraps the same node encoder plus an NCA-style retrieval head for patient-patient or patient-disease similarity: shepherd/patient_nca_model.py
+  The three supported tasks are selected by --run_type, and that switch mainly changes loss/head selection inside get_run_type_args():
+  - causal_gene_discovery -> aligner model + multi-similarity loss
+  - patients_like_me -> patient_NCA + patient-patient NCA loss
+  - disease_characterization -> patient_NCA + patient-disease NCA loss
+    See: shepherd/hparams.py
+  Data expectations are strict. Each patient is one JSON object per line, usually with:
+  - id
+  - positive_phenotypes as HPO IDs
+  - all_candidate_genes as Ensembl IDs for gene ranking
+  - optional true_genes
+  - optional true_diseases
+    See: data_prep/README.md, project_utils.py
+  One important implementation detail is that this repo depends on a lot of precomputed artifacts outside Git:
+  - KG node/edge TSVs
+  - HPO / Ensembl / MONDO lookup pickles
+  - shortest-path matrices for patients
+  - pretrained checkpoints
+  That’s why project_config.py and the shortest-path prep docs matter so much: data_prep/shortest_paths/README.md
+  If you want the practical mental model: this is not a generic app with a clean package boundary. It is a research training pipeline where train.py and predict.py are the real entry points,
+  hparams.py controls behavior, and most failures will come from missing data artifacts or mismatched paths rather than from the core model code.
+  Two caveats stood out while reading it:
+  - There are hardcoded filesystem paths in config and training code, so this repo is not portable as-is: project_config.py, shepherd/train.py#L142
+  - Some scripts/docs appear slightly out of sync on allowed patient_data values, which is typical for research repos.
+  If you want, I can do a second pass focused on one of these:
+  1. training flow end-to-end
+  2. model architecture in detail
+  3. data format and preprocessing
+  4. where to change this repo to run on your own data
+
+
+
+
+› I want to add supplemental gene to phenotype quantitative probability associations data for training what would be the format and where should I put it
+• I’m tracing where gene-phenotype relationships enter the model so I can tell you the format that will actually be consumed during training, not just a plausible schema.
+• Explored
+  └ Search phenotype_protein|disease_phenotype|full_relation|edge_attr|cand_gene_to_phenotypes_spl|additional_labels|probab|prob in shepherd
+    Read prepare_graph.py, samplers.py
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• The key constraint is clear now: this codebase does not consume weighted gene-phenotype edges directly. It treats graph relations as categorical edge types, and any quantitative gene-phenotype
+  signal currently enters only through separate patient-level matrices.
+• Explored
+  └ Read preprocess.py, samplers.py, gp_aligner.py, prepare_graph.py
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+• There are two different ways to add that data in this codebase, and the right one depends on whether you want to treat it as just more KG connectivity or as an actual quantitative signal.
+  What the repo supports today
+  Today, gene-phenotype associations are consumed in two forms:
+  - As categorical KG edges of relation type phenotype_protein in the graph edgelist loaded by shepherd/preprocess.py:17
+  - As a separate numeric patient-by-gene matrix called gp_spl, which gets injected into scoring in shepherd/samplers.py:438 and mixed with learned similarity in shepherd/task_heads/
+    gp_aligner.py:108
+  So if you add “probability associations” without code changes, the only native fit is: add them as extra phenotype_protein edges. But those probabilities will be ignored, because the graph
+  loader only keeps x_idx, y_idx, full_relation, and mask and maps relation strings to integer types, not weights: data_prep/construct_kg/prepare_graph.py:214, shepherd/preprocess.py:21.
+  If you want no code changes
+  Put the supplemental associations into the raw KG table before edgelist generation, as rows like:
+  - x_id: HPO ID
+  - x_type: effect/phenotype
+  - x_name
+  - x_source
+  - y_id: Ensembl gene ID or whatever gene ID your KG build uses
+  - y_type: gene/protein
+  - y_name
+  - y_source
+  - relation: phenotype_protein
+  - display_relation: something like associated with
+  That matches the graph-building pipeline in data_prep/construct_kg/prepare_graph.py. The rows should go into the raw KG source that eventually becomes kg_giant_orphanet.csv under
+  project_config.KG_DIR.
+  In that mode:
+  - Format: raw KG edge rows
+  - Put it: into the KG construction input, then regenerate KG_node_map.txt and KG_edgelist_mask.txt
+  - Limitation: the probabilities are discarded; only the existence of the edge matters
+  If you want to preserve the quantitative probability
+  Then you need a small code extension. The cleanest approach is to mirror the existing gp_spl path:
+  - Create a numeric matrix of shape num_patients x num_genes
+  - Each cell is the aggregated probability that the patient’s phenotype set supports that gene
+  - Also create an index mapping from patient ID to row, just like spl_index
+  That matrix would live under PROJECT_DIR/patients/..., the same place the current SPL artifacts live, because training loads it from there: shepherd/train.py:131, shepherd/predict.py:100
+  A practical format would be:
+  - my_gene_phen_prob_matrix.npy
+      - float32
+      - shape: (n_patients, n_genes_in_spl_order)
+  - my_gene_phen_prob_index_dict.pkl
+      - {patient_id: row_index}
+  The gene column order should match the existing nid_to_spl_dict logic, which enumerates KG gene nodes in node-map order: shepherd/predict.py:113
+  Then you would:
+  - Add config entries in project_config.py
+  - Load the matrix in the sampler alongside gp_spl
+  - Pass it as another tensor, similar to batch_cand_gene_to_phenotypes_spl
+  - Blend it into _calc_similarity() the same way cand_gene_to_phenotypes_spl is blended now
+  Recommendation
+  If your data is genuinely quantitative, don’t force it into the KG edge list. Use the second route and treat it as a separate matrix feature. The current graph path is relation-type-only, so
+  weighted associations will be silently flattened to binary connectivity.
+  If you want, I can implement the quantitative path and define the exact on-disk schema and loader changes for this repo.
+
+
+
+my data is aggregated gene phenotype association probabilities computed across thousands of genetically sequenced patients
+• Then you should not put it into the KG as plain phenotype_protein edges. In this repo that would collapse your signal to binary and throw away the probabilities.
+  The right fit is to add it as a separate quantitative prior, parallel to the existing gp_spl pathway.
+  Your data sounds like a gene-phenotype prior of the form:
+  - input units: (gene, phenotype)
+  - value: P(phenotype | gene) or some calibrated association score estimated from many patients
+  For SHEPHERD, the useful training-time object is not a raw (gene, phenotype, prob) table by itself, but a patient-conditioned gene score matrix derived from it:
+  - rows: patients
+  - columns: genes
+  - value: aggregated score of each candidate gene against that patient’s phenotype set
+  A good aggregation is something like:
+  - sum of log probabilities across observed phenotypes
+  - mean of log probabilities
+  - noisy-OR style aggregation
+  - any calibrated score where higher means “this gene better explains this patient’s phenotype set”
+  So the format I recommend is:
+  - patients/<dataset_name>_gene_phen_prob_matrix.npy
+      - shape: (n_patients, n_genes)
+      - dtype: float32
+      - each row corresponds to one patient
+      - each column corresponds to one KG gene node
+  - patients/<dataset_name>_gene_phen_prob_index_dict.pkl
+      - maps patient ID to row index
+  - optionally, the upstream raw table:
+      - columns: gene_id, phenotype_id, probability
+  The gene column order should match the KG gene node order already used here:
+  - the code builds that ordering from KG node-map gene nodes in shepherd/predict.py:113
+  Where to put it:
+  - under PROJECT_DIR / 'patients'
+  - alongside the existing SPL artifacts referenced from project_config.py
+  Why this is the right place:
+  - training already knows how to load a per-patient, per-gene numeric prior from disk in the sampler: shepherd/samplers.py:438
+  - scoring already mixes that prior with learned phenotype-gene similarity in the aligner: shepherd/task_heads/gp_aligner.py:108
+  So the clean implementation is:
+  1. Add new config paths in project_config.py
+  2. Load your matrix in train.py/predict.py or directly in the sampler
+  3. Slice it per patient/candidate gene exactly like batch_cand_gene_to_phenotypes_spl
+  4. Blend it into _calc_similarity() as another prior term
+  Conceptually, your score per candidate gene should become something like:
+  final_score = a * learned_embedding_score + b * spl_prior + c * gene_phen_prob_prior
+  with a + b + c = 1 or with separate learned weights.
+  One important modeling point: because your data comes from thousands of sequenced patients, it is a population prior. That makes it excellent as a scoring prior, but risky as a KG edge
+  replacement. Keeping it separate lets you:
+  - preserve the quantitative value
+  - tune its contribution
+  - ablate it cleanly
+  - avoid contaminating the KG topology with confidence-weighted edges the encoder cannot represent
+  If you want, I can outline the exact code changes to add a gene_phen_prob prior in the same style as gp_spl, with the file names, tensor shapes, and minimal patches needed.
+› I do not have individual patient data, just the aggregated computed values
+• That is fine. You do not need individual source-patient records for this integration.
+  What SHEPHERD needs from your aggregated resource is a gene-phenotype prior table, not the raw patients that produced it.
+  For your case, the natural source format is:
+  - gene_id
+  - phenotype_id
+  - score
+  where:
+  - gene_id should be Ensembl if possible
+  - phenotype_id should be HPO
+  - score is your aggregated quantitative association, ideally on a consistent scale across genes and phenotypes
+  Example:
+  gene_id	phenotype_id	score
+  ENSG00000123456	HP:0001250	0.83
+  ENSG00000123456	HP:0001249	0.41
+  ENSG00000198786	HP:0004322	0.67
+  But that raw table is still not the tensor the current training code consumes directly. Since you do not have patient-level rows, the right workflow is:
+  1. Store your aggregated table as a separate reference file under the project data area, for example:
+      - PROJECT_DIR/preprocess/gene_phenotype/gene_phenotype_probabilities.tsv
+  2. Add a preprocessing step that converts that table into a patient-conditioned matrix for the actual train/val/test cohorts already used by SHEPHERD.
+  3. Save the derived matrix under PROJECT_DIR/patients/... so the sampler can load it during training.
+  Why this works:
+  - SHEPHERD already has the actual training patients in JSONL form
+  - each training patient has a set of HPO phenotypes
+  - you can score each candidate gene for each existing SHEPHERD patient by aggregating your (gene, phenotype, score) table over that patient’s observed phenotypes
+  So even without your own patient-level dataset, you can still generate:
+  - patients/<dataset>_gene_phen_prob_matrix.npy
+  - patients/<dataset>_gene_phen_prob_index_dict.pkl
+  from:
+  - the repo’s existing patient cohort
+  - your aggregated gene-HPO table
+  In other words:
+  - You do not need patient-level provenance from your external dataset
+  - You do need a preprocessing step that applies your aggregated priors to the patients SHEPHERD trains on
+  Recommended placement:
+  - Raw aggregated file:
+      - PROJECT_DIR/preprocess/gene_phenotype/gene_phenotype_probabilities.tsv
+  - Derived training artifacts:
+      - PROJECT_DIR/patients/<cohort_name>_gene_phen_prob_matrix.npy
+      - PROJECT_DIR/patients/<cohort_name>_gene_phen_prob_index_dict.pkl
+  Recommended aggregation per SHEPHERD patient:
+  - for patient phenotypes H and gene g, compute one score from your table entries over all h in H
+  - practical choices:
+      - mean score across observed phenotypes
+      - sum of log scores
+      - noisy-OR
+  - use the same aggregation for every cohort
+  What not to do:
+  - do not inject the raw weighted table into the KG edgelist unless you are willing to lose the quantitative values
+  - do not try to mimic patient JSONL files from your aggregate resource, because that would invent fake patients
+  So the short answer is:
+  - keep your data as a gene x phenotype x score table
+  - put the raw file under a new preprocess/reference directory
+  - derive a per-SHEPHERD-patient gene prior matrix from it
+  - feed that matrix into training the same way gp_spl is currently used
+  If you want, I can give you the exact schema and a small script design for converting your aggregated table into the .npy matrix this repo should consume.
+ 
+› Explain this codebase

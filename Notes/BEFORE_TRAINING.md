@@ -32,4 +32,25 @@ The output naming is defined directly in `data_prep/shortest_paths/add_spl_to_pa
 - Index dict:
   - `project_config.MY_DATA_DIR / f'{args.save_prefix}_spl_index_dict.pkl'`
 
-  
+
+## How do I modify `project_config.py` for the newly generated train, val, and test data?
+
+Point the `MY_*` paths at your new cohort directory under `patients/`.
+
+In `project_config.py`, set:
+
+```python
+MY_DATA_DIR = Path("my_cohort")
+MY_TRAIN_DATA = MY_DATA_DIR / "train.jsonl"
+MY_VAL_DATA = MY_DATA_DIR / "val.jsonl"
+MY_TEST_DATA = MY_DATA_DIR / "test.jsonl"
+
+MY_SPL_DATA = MY_DATA_DIR / "test_agg=mean_spl_matrix.npy"
+MY_SPL_INDEX_DATA = MY_DATA_DIR / "test_spl_index_dict.pkl"
+
+- These should be relative to PROJECT_DIR / 'patients'
+  - $SHEPHERD_DATA_DIR/patients/my_cohort/train.jsonl
+  - $SHEPHERD_DATA_DIR/patients/my_cohort/val.jsonl
+  - $SHEPHERD_DATA_DIR/patients/my_cohort/test.jsonl
+
+

@@ -1,0 +1,18 @@
+
+
+1 - initial test
+- create train/val/test patient files
+- rebuild KG shortest path (not necessary but best to be safe)
+- rebuild patient spl files`
+- save results on test
+
+2 - add in new edges
+- add in new edges to KG from tab delimited file with pairs
+  - filter to nodes already in the KG
+  - add edges -> append to edges file 
+- rebuild KG shortest path 
+- rebuild patient spl files`
+- save results on test
+
+
+

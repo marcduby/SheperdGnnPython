@@ -32,6 +32,11 @@ def build_maps(node_map_path: Path, edge_list_path: Path) -> list[Path]:
     genes = nodes[nodes["node_type"] == "gene/protein"]
     diseases = nodes[nodes["node_type"] == "disease"]
 
+    # phen["node_id"].astype(str) — takes the node_id column from a DataFrame called phen and converts all values to strings (e.g., "HP:0001234").
+    # phen["node_idx"] — takes the node_idx column, which contains integer index values.
+    # zip(..., ...) — pairs up each node_id with its corresponding node_idx at the same row position, producing tuples like ("HP:0001234", 42).
+    # dict(...) — converts those pairs into a dictionary, so you end up with something like:
+    
     hpo_to_idx = dict(zip(phen["node_id"].astype(str), phen["node_idx"]))
     hpo_to_name = dict(zip(phen["node_id"].astype(str), phen["node_name"].astype(str)))
     ensembl_to_idx = dict(zip(genes["node_id"].astype(str), genes["node_idx"]))
