@@ -1,10 +1,10 @@
 import argparse
-import multiprocessing
 import numpy as np
 import sys
 import time
-import snap
 import pandas as pd
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import shortest_path
 
 import sys
 #sys.path.insert(0, '..') # add config to path
@@ -14,7 +14,6 @@ import project_config
 def parse_args():
     parser = argparse.ArgumentParser(description="Compute KG shortest path matrices.")
     parser.add_argument("--suffix", default="", help="Optional KG filename suffix, e.g. '_noGO'")
-    parser.add_argument("--processes", type=int, default=20, help="Worker processes for SNAP shortest paths")
     return parser.parse_args()
 
 
@@ -36,30 +35,21 @@ def main():
     print("Starting to calculate shortest paths...")
 
     node_map = pd.read_csv(project_config.KG_DIR / nodemap_f, sep="\t")
-    snap_graph = snap.LoadEdgeList(snap.PUNGraph, str(project_config.KG_DIR / edgelist_f), 0, 1)
+    edge_df = pd.read_csv(project_config.KG_DIR / edgelist_f, sep="\t")
 
     t0 = time.time()
 
-    node_ids = np.sort([node.GetId() for node in snap_graph.Nodes()])
     n_nodes = len(node_map)
-    print(n_nodes, len(list(snap_graph.Nodes())), len(node_ids))
     print(f'There are {n_nodes} nodes in the graph')
-    assert max(node_ids) == n_nodes - 1
-    if "noGO" not in edgelist_f:
-        assert len(node_map) == len(node_ids)
+    assert node_map["node_idx"].max() == n_nodes - 1
 
-    def get_shortest_path(node_id):
-        n_id_to_dist = snap.TIntH()
-        snap.GetShortPath(snap_graph, int(node_id), n_id_to_dist)
-        paths = np.zeros((n_nodes))
-        for dest_node in n_id_to_dist:
-            paths[dest_node] = n_id_to_dist[dest_node]
-        return paths
+    rows = edge_df["x_idx"].to_numpy(dtype=np.int64)
+    cols = edge_df["y_idx"].to_numpy(dtype=np.int64)
+    data = np.ones(len(edge_df), dtype=np.float32)
+    adjacency = coo_matrix((data, (rows, cols)), shape=(n_nodes, n_nodes))
+    adjacency = adjacency.maximum(adjacency.transpose()).tocsr()
 
-    with multiprocessing.Pool(processes=args.processes) as pool:
-        shortest_paths = pool.map(get_shortest_path, node_ids)
-
-    all_shortest_paths = np.stack(shortest_paths)
+    all_shortest_paths = shortest_path(adjacency, directed=False, unweighted=True)
     print(all_shortest_paths.shape)
     t1 = time.time()
     print(f'It took {t1-t0:0.4f}s to calculate the shortest paths')
@@ -75,4 +65,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

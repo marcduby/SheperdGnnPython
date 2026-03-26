@@ -1,0 +1,52 @@
+
+
+202360325 - removed snap for scipy 
+
+(sheperdgnn_310) mduby (md_shep310_codex) shortest_paths $ python3 shortest_paths.py 
+Filenames:
+KG_edgelist_mask.txt
+KG_node_map.txt
+KG_shortest_path_matrix.npy
+KG_shortest_path_matrix_onlyphenotypes.npy
+Starting to calculate shortest paths...
+There are 105220 nodes in the graph
+
+
+• I replaced the SNAP-specific code with a scipy.sparse.csgraph.shortest_path implementation, which matches your installed environment. I’m doing a syntax check now; after that you can rerun the
+  same command.
+
+• Ran . ~/Energy/VirtualEnv/sheperdgnn_310/bin/activate && python -m py_compile data_prep/shortest_paths/shortest_paths.py
+  └ (no output)
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• The error happened because your environment has a different snap package, not the Stanford SNAP bindings that shortest_paths.py expected.
+
+  I patched the script to stop using SNAP entirely and compute shortest paths with scipy.sparse.csgraph.shortest_path, which is compatible with your current environment.
+
+  Use the same command again:
+
+  export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+  . ~/Energy/VirtualEnv/sheperdgnn_310/bin/activate
+  cd /Users/mduby/Code/LlmWorkspace/SheperdGnnPython/data_prep/shortest_paths
+
+  python shortest_paths.py
+
+  What changed:
+
+  - no dependency on SNAP anymore
+  - default filenames still use:
+      - KG_node_map.txt
+      - KG_edgelist_mask.txt
+  - outputs remain:
+      - KG_shortest_path_matrix.npy
+      - KG_shortest_path_matrix_onlyphenotypes.npy
+
+  One caution: this may use a lot of memory for a large KG because it computes all-pairs shortest paths. If it hits memory limits, the next fix would be to rewrite it to compute only node-to-
+  phenotype distances instead of the full matrix.
+
+  
+
+
+
+Uisng codex to upgrade to python from 3.8 to 3.10
