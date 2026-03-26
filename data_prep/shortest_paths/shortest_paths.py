@@ -14,6 +14,11 @@ import project_config
 def parse_args():
     parser = argparse.ArgumentParser(description="Compute KG shortest path matrices.")
     parser.add_argument("--suffix", default="", help="Optional KG filename suffix, e.g. '_noGO'")
+    parser.add_argument(
+        "--save-full-matrix",
+        action="store_true",
+        help="Also save the full all-pairs shortest path matrix. This is extremely memory intensive for large KGs.",
+    )
     return parser.parse_args()
 
 
@@ -49,18 +54,23 @@ def main():
     adjacency = coo_matrix((data, (rows, cols)), shape=(n_nodes, n_nodes))
     adjacency = adjacency.maximum(adjacency.transpose()).tocsr()
 
-    all_shortest_paths = shortest_path(adjacency, directed=False, unweighted=True)
-    print(all_shortest_paths.shape)
+    desired_idx = node_map[node_map["node_type"] == "effect/phenotype"]["node_idx"].to_numpy(dtype=np.int64)
+    shortest_paths_to_phens = shortest_path(
+        adjacency,
+        directed=False,
+        unweighted=True,
+        indices=desired_idx,
+    ).T.astype(np.float32, copy=False)
+    print(shortest_paths_to_phens.shape)
     t1 = time.time()
     print(f'It took {t1-t0:0.4f}s to calculate the shortest paths')
 
-    if "noGO" not in spl_mat_all_f:
+    if args.save_full_matrix:
+        all_shortest_paths = shortest_path(adjacency, directed=False, unweighted=True).astype(np.float32, copy=False)
         np.save(project_config.KG_DIR / spl_mat_all_f, all_shortest_paths)
 
-    desired_idx = node_map[node_map["node_type"] == "effect/phenotype"]["node_idx"].tolist()
-    all_shortest_paths_to_phens = all_shortest_paths[:, desired_idx]
     with open(project_config.KG_DIR / spl_mat_onlyphenotypes_f, "wb") as f:
-        np.save(f, all_shortest_paths_to_phens)
+        np.save(f, shortest_paths_to_phens)
 
 
 if __name__ == "__main__":
