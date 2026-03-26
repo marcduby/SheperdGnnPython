@@ -4,6 +4,7 @@ import sys
 from tqdm import tqdm
 import pickle
 import argparse
+from pathlib import Path
 sys.path.insert(0, '../..') # add config to path
 sys.path.insert(0, '..')
 import project_config
