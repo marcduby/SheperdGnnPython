@@ -24,10 +24,16 @@ def add_spl_info(patients, spl_matrix, hpo_to_idx_dict, ensembl_to_idx_dict , ni
     avg_spl_matrix = np.zeros((len(patients), len(all_gene_idx)))
     print('spl_matrix', spl_matrix.shape)
     spl_indexing = {}
+    skipped_patients = 0
     for i, patient in enumerate(tqdm(patients)):
         patient_id = patient['id']
         spl_indexing[patient_id] = i
         hpo_idx = [hpo_to_idx_dict[p] for p in patient['positive_phenotypes'] if p in hpo_to_idx_dict ]
+        if len(hpo_idx) == 0:
+            # Keep shape stable and push unmapped patients to a neutral/low-signal row.
+            avg_spl_matrix[i, :] = -1
+            skipped_patients += 1
+            continue
         if agg_type == 'mean':
             avg_spl_matrix[i, :] = [np.mean([spl_matrix[g, nid_to_spl_dict[p]] for p in hpo_idx]) for g in all_gene_idx]
         elif agg_type == 'max':
@@ -46,6 +52,7 @@ def add_spl_info(patients, spl_matrix, hpo_to_idx_dict, ensembl_to_idx_dict , ni
 
     print('Max avg SPL from gene to phenotypes:', max_spl)
     print('Min avg SPL from gene to phenotypes:', min_spl)
+    print('Patients with no mapped phenotypes:', skipped_patients)
 
     return avg_spl_matrix, spl_indexing
 
@@ -138,14 +145,24 @@ def main():
         patients = patients + test_patients
 
     # get filenames
-    spl_matrix_fname = project_config.MY_DATA_DIR / f'{args.save_prefix}_agg={args.agg_type}_spl_matrix.npy'
-    spl_index_fname = project_config.MY_DATA_DIR / f'{args.save_prefix}_agg={args.agg_type}_spl_index_dict.pkl'
+    save_prefix = Path(args.save_prefix)
+    if save_prefix.parts and save_prefix.parts[0] == project_config.MY_DATA_DIR.as_posix():
+        save_prefix = Path(*save_prefix.parts[1:])
+    elif save_prefix.parts and save_prefix.parts[0] == project_config.MY_DATA_DIR.name:
+        save_prefix = Path(*save_prefix.parts[1:])
+
+    spl_matrix_fname = project_config.MY_DATA_DIR / f'{save_prefix.as_posix()}_agg={args.agg_type}_spl_matrix.npy'
+    spl_index_fname = project_config.MY_DATA_DIR / f'{save_prefix.as_posix()}_agg={args.agg_type}_spl_index_dict.pkl'
 
     print(f'There are {len(patients)} patients in the dataset')
     patients_spl_matrix, spl_indexing = add_spl_info(patients, spl_matrix, hpo_to_idx_dict, ensembl_to_idx_dict, nid_to_spl_dict, min_spl, max_spl , all_gene_idx, args.agg_type, x_max)
-    with open(str(project_config.PROJECT_DIR / 'patients' / spl_index_fname), 'wb') as handle:
+    index_output = project_config.PROJECT_DIR / 'patients' / spl_index_fname
+    matrix_output = project_config.PROJECT_DIR / 'patients' / spl_matrix_fname
+    index_output.parent.mkdir(parents=True, exist_ok=True)
+    matrix_output.parent.mkdir(parents=True, exist_ok=True)
+    with open(str(index_output), 'wb') as handle:
         pickle.dump(spl_indexing, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    np.save(str(project_config.PROJECT_DIR / 'patients' / spl_matrix_fname), patients_spl_matrix)
+    np.save(str(matrix_output), patients_spl_matrix)
 
 
 if __name__ == "__main__":
