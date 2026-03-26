@@ -18,8 +18,14 @@ MY_TRAIN_DATA = MY_DATA_DIR / "train.jsonl"
 MY_VAL_DATA = MY_DATA_DIR / "val.jsonl"
 MY_TEST_DATA = MY_DATA_DIR / "test.jsonl"
 
-MY_SPL_DATA = MY_DATA_DIR / "test_agg=mean_spl_matrix.npy"
-MY_SPL_INDEX_DATA = MY_DATA_DIR / "test_spl_index_dict.pkl"
+MY_TRAIN_VAL_SPL_DATA = MY_DATA_DIR / "train_val_agg=mean_spl_matrix.npy"
+MY_TRAIN_VAL_SPL_INDEX_DATA = MY_DATA_DIR / "train_val_agg=mean_spl_index_dict.pkl"
+MY_TEST_SPL_DATA = MY_DATA_DIR / "test_agg=mean_spl_matrix.npy"
+MY_TEST_SPL_INDEX_DATA = MY_DATA_DIR / "test_agg=mean_spl_index_dict.pkl"
+
+# Backward-compatible aliases for older code paths.
+MY_SPL_DATA = MY_TEST_SPL_DATA
+MY_SPL_INDEX_DATA = MY_TEST_SPL_INDEX_DATA
 
 # MY_DATA_DIR = Path("simulated_patients")
 # MY_TRAIN_DATA = MY_DATA_DIR / f"disease_split_train_sim_patients_{CURR_KG}.txt"
