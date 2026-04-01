@@ -18,11 +18,24 @@
 
 
 
-Commands used:
---------------
+Commands used in reverse order:
+-------------------------------
+
+- predict
 
 
-- calc shortest path 
+- train
+  export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
+  export WANDB_MODE=offline
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt
+
+- copy pre train checkpoint
+cp /tmp/shepherd-pretrain/checkpoints/*456.ckpt pretrain.ckpt
 
 
 - pretrain and save checkpoint
@@ -46,7 +59,7 @@ Commands used:
 
 - calc shortest paths (long)
   python shortest_paths.py
-  
+
 
 Log:
 ----

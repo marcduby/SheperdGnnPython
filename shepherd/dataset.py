@@ -62,6 +62,17 @@ class PatientDataset(Dataset):
         with open(str(project_config.KG_DIR / f'degree_dict_{project_config.CURR_KG}.pkl'), 'rb') as handle:
             self.degree_dict = pickle.load(handle)
 
+        # Drop patients whose phenotype list has no overlap with the KG HPO mapping.
+        original_count = len(self.patients)
+        self.patients = [
+            patient
+            for patient in self.patients
+            if any(p in self.hpo_to_idx_dict for p in patient.get('positive_phenotypes', []))
+        ]
+        dropped_count = original_count - len(self.patients)
+        if dropped_count:
+            print(f'Dropped {dropped_count} patients with no mapped phenotypes from {filepath}')
+
         # get patients with similar genes
         if all(['true_genes' in patient for patient in self.patients]): # first check to make sure all patients have true genes
             genes_to_patients = defaultdict(list)
@@ -201,4 +212,3 @@ class PatientDataset(Dataset):
             return torch.LongTensor(orpha_mondo_idx)
         else:
             raise NotImplementedError
-
