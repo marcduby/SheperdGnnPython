@@ -64,7 +64,24 @@ OBSOLETE_MONDO_DICT = {'MONDO:0008646':'MONDO:0100316', 'MONDO:0016021': 'MONDO:
 'MONDO:0008032':'MONDO:0012215', 'MONDO:0009739':'MONDO:0024457', 'MONDO:0010419':'MONDO:0020721',
 'MONDO:0007291':'MONDO:0031037', 'MONDO:0009245':'MONDO:0100339'} # to do starting with MONDO:0018275
 
-def read_data(args):
+def load_patient_sets(args):
+    patient_paths = [args.patient_train, args.patient_val, args.patient_test]
+    patient_paths = [Path(path) for path in patient_paths if path]
+    if patient_paths:
+        patients = []
+        for path in patient_paths:
+            records = read_patients(path)
+            print(f'Number of patients in {path}: {len(records)}')
+            patients.extend(records)
+        print(f'Number of total patients across provided train/val/test files: {len(patients)}')
+        return patients
+
+    sim_patients = read_patients(args.simulated_path)
+    print(f'Number of sim patients: {len(sim_patients)}')
+    return sim_patients
+
+
+def read_data(args, load_patients=True):
     # read in KG nodes
     node_df = pd.read_csv(project_config.PROJECT_DIR / 'knowledge_graph' / project_config.CURR_KG / args.node_map, sep='\t')
     print(f'Unique node sources: {node_df["node_source"].unique()}')
@@ -72,9 +89,9 @@ def read_data(args):
 
     node_type_dict = {idx:node_type for idx, node_type in zip(node_df['node_idx'], node_df['node_type'])}
 
-    # read in patients
-    sim_patients = read_patients(args.simulated_path)
-    print(f'Number of sim patients: {len(sim_patients)}')
+    sim_patients = []
+    if load_patients:
+        sim_patients = load_patient_sets(args)
     
     # orphanet metadata
     orphanet_metadata = pd.read_csv(ORPHANET_METADATA_FILE, sep='\t', dtype=str)  
@@ -325,6 +342,9 @@ def main():
     parser.add_argument("-edgelist", type=str, default=f'KG_edgelist_mask.txt', help="File with edge list")
     parser.add_argument("-node_map", type=str, default=f'KG_node_map.txt', help="File with node list")
     parser.add_argument("-simulated_path", type=str, default=f'{project_config.PROJECT_DIR}/patients/simulated_patients/simulated_patients_formatted.jsonl', help="Path to simulated patients")
+    parser.add_argument("--patient-train", type=str, default=None, help="Optional train patient JSONL/TXT file.")
+    parser.add_argument("--patient-val", type=str, default=None, help="Optional validation patient JSONL/TXT file.")
+    parser.add_argument("--patient-test", type=str, default=None, help="Optional test patient JSONL/TXT file.")
 
     parser.add_argument("-split_dataset", action='store_true', help="Split patient datasets into train/val/test.")
     parser.add_argument("-split_dataset_from_lists", action='store_true', help='Whether the train/val/test split IDs should be read from file.')
@@ -337,7 +357,9 @@ def main():
     args = parser.parse_args()
 
     ## read in data, normalize genes to ensembl ids, and create maps from genes/phenotypes to node idx
-    node_df, node_type_dict, sim_patients, orphanet_metadata, mondo_orphanet_map, orphanet_mondo_map, hp_map_dict, mondo_to_hpo_dict = read_data(args)
+    node_df, node_type_dict, sim_patients, orphanet_metadata, mondo_orphanet_map, orphanet_mondo_map, hp_map_dict, mondo_to_hpo_dict = read_data(
+        args, load_patients=not args.rebuild_lookup_only
+    )
     hpo_to_idx_dict = create_hpo_to_node_idx_dict(node_df, hp_map_dict)
     node_df, gene_symbol_to_idx_dict, ensembl_to_idx_dict = create_gene_to_node_idx_dict(args,node_df)
     mondo_to_node_idx_dict = create_mondo_to_node_idx_dict(node_df, mondo_to_hpo_dict)
