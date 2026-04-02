@@ -8,7 +8,9 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from multiprocessing import Pool
-sys.path.insert(0, '..') # add project_config to path
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(REPO_ROOT))
 import project_config as config
 import logging
 import pickle
