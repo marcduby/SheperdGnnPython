@@ -27,7 +27,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import preprocess 
 import project_config
-from project_utils import read_simulated_patients, write_patients
+from project_utils import read_patients, write_patients
 pd.options.mode.chained_assignment = None
 
 try:
@@ -73,7 +73,7 @@ def read_data(args):
     node_type_dict = {idx:node_type for idx, node_type in zip(node_df['node_idx'], node_df['node_type'])}
 
     # read in patients
-    sim_patients = read_simulated_patients(args.simulated_path)
+    sim_patients = read_patients(args.simulated_path)
     print(f'Number of sim patients: {len(sim_patients)}')
     
     # orphanet metadata
