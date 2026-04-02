@@ -1,7 +1,6 @@
 import pandas as pd
 import jsonlines
 import networkx as nx
-import snap
 import obonet
 import numpy as np
 import re
@@ -27,6 +26,11 @@ import preprocess
 import project_config
 from project_utils import read_simulated_patients, write_patients
 pd.options.mode.chained_assignment = None
+
+try:
+    import snap
+except ImportError:  # pragma: no cover - optional in lookup-only mode
+    snap = None
 
 # input locations
 ORPHANET_METADATA_FILE = str(project_config.PROJECT_DIR / 'preprocess' / 'orphanet' / 'orphanet_final_disease_metadata.tsv')
@@ -263,8 +267,10 @@ def create_dataset_split_from_lists(filtered_patients, train_list_f, val_list_f)
 
     train_patients, val_patients, unsorted_patients = [], [], []
     for patient in filtered_patients:
-        if patient['id'] in train_list: rand_train_patients.append(patient)
-        elif patient['id'] in val_list: rand_val_patients.append(patient)
+        if patient['id'] in train_list:
+            train_patients.append(patient)
+        elif patient['id'] in val_list:
+            val_patients.append(patient)
         else: unsorted_patients.append(patient)
     
     print(f'There are {len(train_patients)} patients in the train set and {len(val_patients)} in the val set.')
@@ -293,8 +299,8 @@ def create_disease_split_dataset(filtered_patients, frac_train=0.7, frac_val_tes
     dx_split_test_patient_ids = pd.DataFrame({'ids':[p['id'] for p in dx_split_test_patients]})
     
     #NOTE: we decided to merge the train & test sets into a single larger train set to be able to train on more diseases. We are posthoc merging to keep the code as was originally written.
-    dx_split_train_patient_ids = pd.concat([]dx_split_train_patient_ids, dx_split_test_patient_ids)
-    dx_split_train_patients = dx_split_train_patients + dx_split_test_patient_ids
+    dx_split_train_patient_ids = pd.concat([dx_split_train_patient_ids, dx_split_test_patient_ids])
+    dx_split_train_patients = dx_split_train_patients + dx_split_test_patients
     
     
     print(f'There are {len(dx_split_train_patients)} patients in the disease split train set and {len(dx_split_val_patients)} in the val set.')
@@ -319,6 +325,11 @@ def main():
 
     parser.add_argument("-split_dataset", action='store_true', help="Split patient datasets into train/val/test.")
     parser.add_argument("-split_dataset_from_lists", action='store_true', help='Whether the train/val/test split IDs should be read from file.')
+    parser.add_argument(
+        "--rebuild_lookup_only",
+        action="store_true",
+        help="Only rebuild KG lookup pickle files and skip patient filtering/splitting.",
+    )
     
     args = parser.parse_args()
 
@@ -328,8 +339,22 @@ def main():
     node_df, gene_symbol_to_idx_dict, ensembl_to_idx_dict = create_gene_to_node_idx_dict(args,node_df)
     mondo_to_node_idx_dict = create_mondo_to_node_idx_dict(node_df, mondo_to_hpo_dict)
     map_diseases_to_orphanet(node_df, mondo_orphanet_map)
+
+    if args.rebuild_lookup_only:
+        print("Rebuilt KG lookup files:")
+        print(f"  {HPO_TO_IDX_DICT_FILE}")
+        print(f"  {HPO_TO_NAME_DICT_FILE}")
+        print(f"  {ENSEMBL_TO_IDX_DICT_FILE}")
+        print(f"  {GENE_SYMBOL_TO_IDX_DICT_FILE}")
+        print(f"  {MONDO_TO_IDX_DICT_FILE}")
+        print(f"  {MONDO_TO_NAME_DICT_FILE}")
+        print(f"  {ORPHANET_TO_MONDO_DICT}")
+        return
+
     edges = pd.read_csv(project_config.KG_DIR / args.edgelist, sep="\t")
     graph = create_networkx_graph(edges)
+    if snap is None:
+        raise ImportError("snap is required unless you run with --rebuild_lookup_only")
     snap_graph = snap.LoadEdgeList(snap.TUNGraph, str(project_config.KG_DIR / args.edgelist), 0, 1, '\t')
 
 
@@ -349,7 +374,7 @@ def main():
             dx_split_train_patients, dx_split_val_patients, dx_split_train_patient_ids, dx_split_val_patient_ids = create_disease_split_dataset(filtered_sim_patients)
 
         ## Save to file
-        if not args.create_train_val_test_from_lists: 
+        if not args.split_dataset_from_lists:
             dx_split_train_patient_ids.to_csv(project_config.PROJECT_DIR / 'patients' / f'simulated_patients'/ f'disease_split_train_sim_patients_kg_{project_config.CURR_KG}_patient_ids.csv')
             dx_split_val_patient_ids.to_csv(project_config.PROJECT_DIR / 'patients' / f'simulated_patients'/ f'disease_split_val_sim_patients_kg_{project_config.CURR_KG}_patient_ids.csv')
 
