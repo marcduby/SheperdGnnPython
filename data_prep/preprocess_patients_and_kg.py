@@ -197,7 +197,7 @@ def create_hpo_to_node_idx_dict(node_df, hp_old_new_map):
     return hpo_to_idx_dict
 
 def create_gene_to_node_idx_dict(args, node_df):
-    ensembl_node_map = Path(str(args.node_map).split('.txt')[0]+ '_ensembl_ids.txt')
+    ensembl_node_map = project_config.KG_DIR / Path(str(args.node_map).split('.txt')[0] + '_ensembl_ids.txt')
     if ensembl_node_map.exists():
         node_df = pd.read_csv(ensembl_node_map, sep='\t')
     else:
@@ -214,7 +214,7 @@ def create_gene_to_node_idx_dict(args, node_df):
         node_df.loc[node_df['node_idx'].isin(gene_nodes['node_idx']), 'node_name'] = gene_nodes['node_name']
 
         # save modified node df back to file
-        node_df.to_csv(ensembl_node_map, sep='\t')
+        node_df.to_csv(ensembl_node_map, sep='\t', index=False)
 
     # create gene to idx dict
     gene_nodes = node_df.loc[node_df['node_type'] == 'gene/protein']
