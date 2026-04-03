@@ -81,7 +81,7 @@ def load_patient_sets(args):
     return sim_patients
 
 
-def read_data(args, load_patients=True):
+def read_data(args, load_patients=True, allow_missing_metadata=False):
     # read in KG nodes
     node_df = pd.read_csv(project_config.PROJECT_DIR / 'knowledge_graph' / project_config.CURR_KG / args.node_map, sep='\t')
     print(f'Unique node sources: {node_df["node_source"].unique()}')
@@ -93,54 +93,70 @@ def read_data(args, load_patients=True):
     if load_patients:
         sim_patients = load_patient_sets(args)
     
-    # orphanet metadata
-    orphanet_metadata = pd.read_csv(ORPHANET_METADATA_FILE, sep='\t', dtype=str)  
-
-    # orphanet to mondo map
-    mondo_map_df = pd.read_csv(MONDO_MAP_FILE, sep=',', index_col=0) #dtype=str
-    obsolete_mondo_dict = {int(re.sub('MONDO:0*', '', k)):int(re.sub('MONDO:0*', '', v)) for k,v in OBSOLETE_MONDO_DICT.items()}
-    mondo_map_df['mondo_id'] = mondo_map_df['mondo_id'].replace(obsolete_mondo_dict)
-    mondo_map_df.to_csv(project_config.PROJECT_DIR / 'mondo_references_normalized.csv', sep=',') 
-
-    mondo_map_df = mondo_map_df.loc[mondo_map_df['ontology'] == 'Orphanet']
-    mondo_orphanet_map = {str(mondo_id):[int(v) for v in mondo_map_df.loc[mondo_map_df['mondo_id'] == mondo_id, 'ontology_id'].tolist()] for mondo_id in mondo_map_df['mondo_id'].unique().tolist() }
-
-    mondo_obo = obonet.read_obo(MONDO_OBO_FILE) 
-    mondo_to_orphanet_obo_map = {node_id:[r for r in node['xref'] if r.startswith('Orphanet')] for node_id, node in list(mondo_obo.nodes(data=True)) if 'xref' in node}
-    mondo_to_orphanet_obo_map = {k.replace('MONDO:', ''): [int(v.replace('Orphanet:', '')) for v in vals] for k, vals in mondo_to_orphanet_obo_map.items() if len(vals) > 0 }
-    mondo_to_orphanet_obo_map = {re.split('^0*', k)[-1]:v for k,v in mondo_to_orphanet_obo_map.items()}
-
-    #merge two sources of mondo to orphanet mappings
-    missing_keys = set(list(mondo_to_orphanet_obo_map.keys())).difference(set(list(mondo_orphanet_map.keys())))
-    missing_keys2 = set(list(mondo_orphanet_map.keys())).difference(set(list(mondo_to_orphanet_obo_map.keys())))
-    overlapping_keys = set(list(mondo_to_orphanet_obo_map.keys())).intersection(set(list(mondo_orphanet_map.keys())))
-    print('\n ############ Retrieving mondo to orphanet maps ############')
-    print(f'There are {len(missing_keys)} missing mappings from the non-obo mondo to orphanet mapping')
-    print(f'There are {len(missing_keys2)} missing mappings from the obo mondo to orphanet mapping')
-    disagreement_keys = [(k, mondo_orphanet_map[k],mondo_to_orphanet_obo_map[k])  for k in overlapping_keys if len(set(mondo_orphanet_map[k]).intersection(set(mondo_to_orphanet_obo_map[k]))) == 0]
-    print(f'There is/are {len(disagreement_keys)} mapping(s from the two mondo dicts that don\'t agree with each other: {disagreement_keys}')
-    
-    merged_mondo_to_orphanet_map = {k: list(set(mondo_orphanet_map[k]).union(set(mondo_to_orphanet_obo_map[k]))) for k in overlapping_keys if k not in disagreement_keys}
-    for k in missing_keys: merged_mondo_to_orphanet_map[k] = mondo_to_orphanet_obo_map[k]
-    for k in missing_keys2: merged_mondo_to_orphanet_map[k] = mondo_orphanet_map[k]
-
-    # create reverse - orphanet to mondo mapping
+    orphanet_metadata = None
+    merged_mondo_to_orphanet_map = {}
     orphanet_to_mondo_dict = defaultdict(list)
-    for mondo, orphanet_list in merged_mondo_to_orphanet_map.items():
-        for orphanet_id in orphanet_list:
-            orphanet_to_mondo_dict[orphanet_id].append(mondo)
-    with open(ORPHANET_TO_MONDO_DICT, 'wb') as handle:
-        pickle.dump(orphanet_to_mondo_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    hp_map_dict = {}
+    mondo_to_hpo_dict = {}
 
-    print('max number of mondo terms associated with an orphanet term: ', max([len(v) for k,v in orphanet_to_mondo_dict.items()]))
+    try:
+        orphanet_metadata = pd.read_csv(ORPHANET_METADATA_FILE, sep='\t', dtype=str)
 
-    # read in mapping from old to current phenotypes
-    hp_terms = pd.read_csv(HP_TERMS)
-    hp_map_dict = {'HP:' + ('0' * (7-len(str(int(hp_old))))) + str(int(hp_old)): 'HP:' + '0' * (7-len(str(int(hp_new)))) + str(int(hp_new)) for hp_old,hp_new in zip(hp_terms['id'], hp_terms['replacement_id'] ) if not pd.isnull(hp_new)}
+        mondo_map_df = pd.read_csv(MONDO_MAP_FILE, sep=',', index_col=0)
+        obsolete_mondo_dict = {int(re.sub('MONDO:0*', '', k)):int(re.sub('MONDO:0*', '', v)) for k,v in OBSOLETE_MONDO_DICT.items()}
+        mondo_map_df['mondo_id'] = mondo_map_df['mondo_id'].replace(obsolete_mondo_dict)
+        mondo_map_df.to_csv(project_config.PROJECT_DIR / 'mondo_references_normalized.csv', sep=',')
 
-    # read in mapping from mondo diseases to HPO phenotypes (this mapping occurs when a single entity is cross referenced by MONDO & HPO. In such cases we map to HPO)
-    mondo2hpo = pd.read_csv(MONDOTOHPO)
-    mondo_to_hpo_dict =  {mondo:hpo for hpo,mondo in zip(mondo2hpo['ontology_id'], mondo2hpo['mondo_id'])}
+        mondo_map_df = mondo_map_df.loc[mondo_map_df['ontology'] == 'Orphanet']
+        mondo_orphanet_map = {str(mondo_id):[int(v) for v in mondo_map_df.loc[mondo_map_df['mondo_id'] == mondo_id, 'ontology_id'].tolist()] for mondo_id in mondo_map_df['mondo_id'].unique().tolist() }
+
+        mondo_obo = obonet.read_obo(MONDO_OBO_FILE)
+        mondo_to_orphanet_obo_map = {node_id:[r for r in node['xref'] if r.startswith('Orphanet')] for node_id, node in list(mondo_obo.nodes(data=True)) if 'xref' in node}
+        mondo_to_orphanet_obo_map = {k.replace('MONDO:', ''): [int(v.replace('Orphanet:', '')) for v in vals] for k, vals in mondo_to_orphanet_obo_map.items() if len(vals) > 0 }
+        mondo_to_orphanet_obo_map = {re.split('^0*', k)[-1]:v for k,v in mondo_to_orphanet_obo_map.items()}
+
+        missing_keys = set(list(mondo_to_orphanet_obo_map.keys())).difference(set(list(mondo_orphanet_map.keys())))
+        missing_keys2 = set(list(mondo_orphanet_map.keys())).difference(set(list(mondo_to_orphanet_obo_map.keys())))
+        overlapping_keys = set(list(mondo_to_orphanet_obo_map.keys())).intersection(set(list(mondo_orphanet_map.keys())))
+        print('\n ############ Retrieving mondo to orphanet maps ############')
+        print(f'There are {len(missing_keys)} missing mappings from the non-obo mondo to orphanet mapping')
+        print(f'There are {len(missing_keys2)} missing mappings from the obo mondo to orphanet mapping')
+        disagreement_keys = [(k, mondo_orphanet_map[k],mondo_to_orphanet_obo_map[k])  for k in overlapping_keys if len(set(mondo_orphanet_map[k]).intersection(set(mondo_to_orphanet_obo_map[k]))) == 0]
+        print(f'There is/are {len(disagreement_keys)} mapping(s from the two mondo dicts that don\'t agree with each other: {disagreement_keys}')
+
+        merged_mondo_to_orphanet_map = {k: list(set(mondo_orphanet_map[k]).union(set(mondo_to_orphanet_obo_map[k]))) for k in overlapping_keys if k not in disagreement_keys}
+        for k in missing_keys:
+            merged_mondo_to_orphanet_map[k] = mondo_to_orphanet_obo_map[k]
+        for k in missing_keys2:
+            merged_mondo_to_orphanet_map[k] = mondo_orphanet_map[k]
+
+        for mondo, orphanet_list in merged_mondo_to_orphanet_map.items():
+            for orphanet_id in orphanet_list:
+                orphanet_to_mondo_dict[orphanet_id].append(mondo)
+        with open(ORPHANET_TO_MONDO_DICT, 'wb') as handle:
+            pickle.dump(orphanet_to_mondo_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        print('max number of mondo terms associated with an orphanet term: ', max([len(v) for k,v in orphanet_to_mondo_dict.items()]))
+    except FileNotFoundError as exc:
+        if not allow_missing_metadata:
+            raise
+        print(f"Warning: skipping Orphanet/MONDO metadata rebuild because a source file is missing: {exc}")
+
+    try:
+        hp_terms = pd.read_csv(HP_TERMS)
+        hp_map_dict = {'HP:' + ('0' * (7-len(str(int(hp_old))))) + str(int(hp_old)): 'HP:' + '0' * (7-len(str(int(hp_new)))) + str(int(hp_new)) for hp_old,hp_new in zip(hp_terms['id'], hp_terms['replacement_id'] ) if not pd.isnull(hp_new)}
+    except FileNotFoundError as exc:
+        if not allow_missing_metadata:
+            raise
+        print(f"Warning: skipping old-to-new HPO replacement map because source file is missing: {exc}")
+
+    try:
+        mondo2hpo = pd.read_csv(MONDOTOHPO)
+        mondo_to_hpo_dict = {mondo:hpo for hpo,mondo in zip(mondo2hpo['ontology_id'], mondo2hpo['mondo_id'])}
+    except FileNotFoundError as exc:
+        if not allow_missing_metadata:
+            raise
+        print(f"Warning: skipping MONDO-to-HPO disease remap because source file is missing: {exc}")
 
     return node_df, node_type_dict, sim_patients, orphanet_metadata, merged_mondo_to_orphanet_map, orphanet_to_mondo_dict, hp_map_dict, mondo_to_hpo_dict
 
@@ -227,7 +243,7 @@ def create_mondo_to_node_idx_dict(node_df, mondo_to_hpo_dict):
     # get mapping from phenotypes to KG idx
     phenotype_nodes = node_df.loc[node_df['node_type'] == 'effect/phenotype']
     phen_to_idx_dict = {int(phen):idx for phen, idx in zip(phenotype_nodes['node_id'].tolist(), phenotype_nodes['node_idx'].tolist()) if int(phen) in mondo_to_hpo_dict.values()}
-    disease_mapped_phen_to_idx_dict = {str(mondo):phen_to_idx_dict[hpo] for mondo, hpo in mondo_to_hpo_dict.items()}
+    disease_mapped_phen_to_idx_dict = {str(mondo):phen_to_idx_dict[hpo] for mondo, hpo in mondo_to_hpo_dict.items() if hpo in phen_to_idx_dict}
 
     # merge two mappings
     mondo_to_idx_dict = {**mondo_to_idx_dict, **disease_mapped_phen_to_idx_dict}
@@ -244,6 +260,8 @@ def create_mondo_to_node_idx_dict(node_df, mondo_to_hpo_dict):
     return mondo_to_idx_dict
 
 def map_diseases_to_orphanet(node_df, mondo_orphanet_map):
+    if not mondo_orphanet_map:
+        return
     all_orphanet_ids = []
     for node_id, node_type  in zip(node_df['node_id'], node_df['node_type']):
         if node_type == 'disease':
@@ -358,7 +376,7 @@ def main():
 
     ## read in data, normalize genes to ensembl ids, and create maps from genes/phenotypes to node idx
     node_df, node_type_dict, sim_patients, orphanet_metadata, mondo_orphanet_map, orphanet_mondo_map, hp_map_dict, mondo_to_hpo_dict = read_data(
-        args, load_patients=not args.rebuild_lookup_only
+        args, load_patients=not args.rebuild_lookup_only, allow_missing_metadata=args.rebuild_lookup_only
     )
     hpo_to_idx_dict = create_hpo_to_node_idx_dict(node_df, hp_map_dict)
     node_df, gene_symbol_to_idx_dict, ensembl_to_idx_dict = create_gene_to_node_idx_dict(args,node_df)
