@@ -42,7 +42,8 @@ cp /tmp/shepherd-pretrain/checkpoints/*456.ckpt pretrain.ckpt
   python pretrain.py \
     --edgelist KG_edgelist_mask.txt \
     --node_map KG_node_map.txt \
-    --save_dir /tmp/shepherd-pretrain
+    --save_dir /tmp/shepherd-pretrain \
+    --max_epochs 200
 
 
 - spl for test
@@ -83,4 +84,81 @@ Max avg SPL from gene to phenotypes: -1
 Min avg SPL from gene to phenotypes: 1000
 
 
+
+Logs for training:
+
+(sheperd_31012) ubuntu@ip-172-31-27-85:~/Code/SheperdGnnCodex$   export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
+  export WANDB_MODE=offline
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt
+Train model args:  Namespace(edgelist='KG_edgelist_mask.txt', node_map='KG_node_map.txt', saved_node_embeddings_path='/home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt', patient_data='my_data', run_type='causal_gene_discovery', aug_sim=None, aug_gene_by_deg=False, aug_gene_w=0.7, n_sim_genes=3, n_transformer_layers=3, n_transformer_heads=8, sparse_sample=200, lr=0.0001, upsample_cand=1, neighbor_sampler_size=-1, lmbda=0.5, alpha=0, kappa=0.3, seed=33, batch_size=64, resume='', do_inference=False, best_ckpt=None, use_wandb=True)
+Train hparams:  {'sparse_sample': 200, 'lr': 0.0001, 'upsample_cand': 1, 'neighbor_sampler_sizes': [-1, 10, 5], 'lambda': 0.5, 'alpha': 0, 'kappa': 0.15, 'seed': 33, 'batch_size': 64, 'augment_genes': True, 'n_sim_genes': 3, 'aug_gene_w': 0.7, 'aug_gene_by_deg': False, 'n_transformer_layers': 3, 'n_transformer_heads': 8, 'pos_weight': 1, 'neg_weight': 20, 'margin': 0.4, 'thresh': 1, 'filter_edges': False, 'softmax_scale': 1, 'leaky_relu': 0.1, 'decoder_type': 'bilinear', 'combined_training': True, 'sample_from_gpd': True, 'attention_type': 'bilinear', 'n_cand_diseases': 1000, 'test_n_cand_diseases': -1, 'candidate_disease_type': 'all_kg_nodes', 'patient_similarity_type': 'gene', 'n_similar_patients': 2, 'only_hard_distractors': False, 'sample_edges_from_train_patients': False, 'gradclip': 1.0, 'inference_batch_size': 64, 'max_epochs': 100, 'n_gpus': 1, 'num_workers': 4, 'wandb_save_dir': PosixPath('/home/ubuntu/Data/Sheperd/OriginalFromHU/wandb'), 'precision': 16, 'reload_dataloaders_every_n_epochs': 0, 'profiler': 'simple', 'pin_memory': False, 'time': False, 'log_gpu_memory': True, 'debug': False, 'plot_softmax': False, 'plot_intrain': False, 'plot_PG_embed': False, 'plot_disease_embed': False, 'plot_patient_embed': False, 'plot_degree_rank': False, 'plot_nhops_rank': False, 'plot_frac_rank': False, 'plot_gradients': False, 'plot_attn_nhops': False, 'plot_phen_gene_sims': False, 'mrr_vs_percent_overlap': False, 'saved_checkpoint_path': PosixPath('/home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt'), 'model_type': 'aligner', 'loss': 'gene_multisimilarity', 'use_diseases': False, 'add_cand_diseases': False, 'add_similar_patients': False, 'wandb_project_name': 'causal-gene-discovery', 'train_data': PosixPath('my_cohort/train.jsonl'), 'validation_data': PosixPath('my_cohort/val.jsonl'), 'test_data': PosixPath('my_cohort/test.jsonl'), 'spl': PosixPath('my_cohort/train_val_agg=mean_spl_matrix.npy'), 'spl_index': PosixPath('my_cohort/train_val_agg=mean_spl_index_dict.pkl')}
+Training Model
+node embedder args:  Namespace(edgelist='KG_edgelist_mask.txt', node_map='KG_node_map.txt', saved_node_embeddings_path='/home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt', patient_data='my_data', run_type='causal_gene_discovery', aug_sim=None, aug_gene_by_deg=False, aug_gene_w=0.7, n_sim_genes=3, n_transformer_layers=3, n_transformer_heads=8, sparse_sample=200, lr=0.0001, upsample_cand=1, neighbor_sampler_size=-1, lmbda=0.5, alpha=0, kappa=0.3, seed=33, batch_size=64, resume='', do_inference=False, best_ckpt=None, use_wandb=True)
+Pretrain hparams:  {'nfeat': 4096, 'hidden': 256, 'output': 128, 'n_heads': 2, 'wd': 0.0005, 'dropout': 0.2, 'lr': 0.0001, 'decoder_type': 'bilinear', 'norm_method': 'batch_layer', 'loss': 'max-margin', 'pred_threshold': 0.5, 'negative_sampler_approach': 'by_edge_type', 'filter_edges': True, 'n_gpus': 1, 'num_workers': 4, 'batch_size': 512, 'inference_batch_size': 64, 'neighbor_sampler_sizes': [15, 10, 5], 'max_epochs': 200, 'gradclip': 1.0, 'lr_factor': 0.01, 'lr_patience': 1000, 'lr_threshold': 0.0001, 'lr_threshold_mode': 'rel', 'lr_cooldown': 0, 'min_lr': 0, 'eps': 1e-08, 'seed': 1, 'profiler': None, 'wandb_save_dir': PosixPath('/home/ubuntu/Data/Sheperd/OriginalFromHU/wandb/preprocess'), 'log_every_n_steps': 10, 'time': False, 'debug': False}
+Edge List:  KG_edgelist_mask.txt
+Node Map:  KG_node_map.txt
+Global seed set to 33
+Read data
+Number of nodes: 105220
+Creating new W&B Logger
+wandb: Using wandb-core as the SDK backend. Please refer to https://wandb.me/wandb-core for more information.
+wandb: WARNING Path /home/ubuntu/Data/Sheperd/OriginalFromHU/wandb/wandb/ wasn't writable, using system temp directory.
+wandb: WARNING `resume` will be ignored since W&B syncing is set to `offline`. Starting a new run with run id 04_04_26_03_12_50_val_my_cohort.val.jsonl_seed=33.
+wandb: Tracking run with wandb version 0.18.1
+wandb: W&B syncing is set to `offline` in this directory.  
+wandb: Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+Run name 04_04_26:03:12:50_val_my_cohort.val.jsonl_seed=33
+setting up model aligner
+Initializing Model
+Loading Node Embedder from /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt
+GPAligner embedding dimension:  512
+/home/ubuntu/Code/VirtualEnv/sheperd_31012/lib/python3.10/site-packages/torch/nn/modules/transformer.py:282: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.self_attn.batch_first was not True(use batch_first for better inference performance)
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+End Patient Model Initialization
+finished setting up model
+loading patient datasets
+Dataset filepath:  /home/ubuntu/Data/Sheperd/OriginalFromHU/patients/my_cohort/train.jsonl
+Number of patients:  30790
+Finished initalizing dataset
+Dataset filepath:  /home/ubuntu/Data/Sheperd/OriginalFromHU/patients/my_cohort/val.jsonl
+Number of patients:  6400
+Finished initalizing dataset
+finished loading patient datasets
+Get dataloaders
+Loading SPL...
+Loaded SPL information
+setting up train dataloader
+finished setting up train dataloader
+setting up val dataloader
+finished setting up val dataloader
+setting up test dataloader
+finished setting up test dataloader
+Init callbacks
+Checkpoint path:  /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/aligner/04_04_26:03:12:50_val_my_cohort.val.jsonl_seed=33
+wandb logger watch
+wandb: logging graph, to disable use `wandb.watch(log_graph=False)`
+initialize trainer
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+`Trainer(limit_train_batches=1.0)` was configured so 100% of the batches per epoch will be used..
+`Trainer(limit_val_batches=1.0)` was configured so 100% of the batches will be used..
+You are using a CUDA device ('NVIDIA A10G') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name          | Type        | Params
+----------------------------------------------
+0 | node_model    | NodeEmbeder | 229 M 
+1 | patient_model | GPAligner   | 11.0 M
+----------------------------------------------
+240 M     Trainable params
+0         Non-trainable params
+240 M     Total params
+960.786   Total estimated model params size (MB)
 
