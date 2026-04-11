@@ -1,0 +1,116 @@
+
+
+
+
+- 20260410 - get train/val spl
+
+
+- 20260410 - get shortest path 
+(sheperd_31012) ubuntu@ip-172-31-27-85:~/Code/SheperdGnnCodex/data_prep/shortest_paths$ python3 shortest_paths.py
+Filenames:
+KG_edgelist_mask.txt
+KG_node_map.txt
+KG_shortest_path_matrix.npy
+KG_shortest_path_matrix_onlyphenotypes.npy
+Starting to calculate shortest paths...
+There are 105220 nodes in the graph
+(105220, 15874)
+It took 1615.6279s to calculate the shortest paths
+
+
+
+- 20260410 - adding in gene/trait lists 
+mduby 1.1.0_kg $ cat KG_edgelist_mask.txt | grep train | wc -l
+ 5628962
+mduby 1.1.0_kg $ cat KG_edgelist_mask.txt | grep val | wc -l
+ 1083138
+ 
+ wrote 7036186 unique KG rows to /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask.txt
+added 3795380 new rows from /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/gene_edge_list.txt
+skipped 115742 duplicate rows from existing KG edge list
+skipped 408770 source rows already present in KG
+skipped 0 duplicate source rows
+skipped 72370 source rows with missing HPO or NCBI gene nodes
+
+Mask counts:
+train	5628962
+val	1083138
+test	324086
+
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	2433142
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	2433142
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+
+- 20260410 - original HU data
+mduby 1.1.0_kg $ cat HU_original_KG_edgelist_mask.txt | grep val | wc -l
+  361250
+mduby 1.1.0_kg $ cat HU_original_KG_edgelist_mask.txt | grep train | wc -l
+ 2633904
+
+Mask counts:
+train	2633904
+val	361250
+test	361394
+
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	593323
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	593323
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+

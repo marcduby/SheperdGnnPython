@@ -140,7 +140,12 @@ def get_dataloaders(hparams, all_data, nid_to_spl_dict, n_nodes, gene_phen_dis_n
         with open(str(project_config.PROJECT_DIR / 'knowledge_graph/8.9.21_kg' / ('top_10_similar_genes_sim=%s.pkl' % args.aug_sim)), "rb") as input_file:
             gene_similarity_dict = pickle.load(input_file)
         print("Using augment gene similarity: %s" % args.aug_sim)
-    else: gene_similarity_dict=None
+    else:
+        gene_similarity_dict = None
+
+    if hparams.get('augment_genes') and gene_similarity_dict is None:
+        print('Gene augmentation requested but no similarity dictionary was provided; disabling augment_genes.')
+        hparams['augment_genes'] = False
 
     with open(project_config.KG_DIR / f'degree_dict_{project_config.CURR_KG}.pkl', "rb") as input_file:
         gene_deg_dict = pickle.load(input_file)

@@ -86,21 +86,37 @@ def get_mask(edge_index, nodes, ind):
 
 
 def get_indices_into_edge_index(edge_index, source_nodes, target_nodes):
-    
-    if source_nodes.size(0) > MAX_SIZE:
-        source_node_mask = get_mask(edge_index, source_nodes, ind = 0)
-        target_node_mask = get_mask(edge_index, target_nodes, ind = 1)
-    else:
-        source_node_mask = (edge_index[0,:] == source_nodes.unsqueeze(-1)).nonzero()
-        target_node_mask = (edge_index[1,:] == target_nodes.unsqueeze(-1)).nonzero()
-    
-    vals_pos, counts_pos = torch.unique(torch.cat([source_node_mask, target_node_mask]), return_counts=True, dim=0)
-    if len(vals_pos) == 0 or len(counts_pos) == 0:
+    # The original implementation broadcast source/target nodes against every
+    # edge. With augmented KGs this can exceed PyTorch's INT_MAX element limit.
+    # Encode each directed edge as a single int64 key and match pairwise keys.
+    if source_nodes.numel() == 0 or target_nodes.numel() == 0:
+        empty = torch.empty(0, dtype=torch.long, device=edge_index.device)
+        return empty, empty
+
+    max_node = torch.max(torch.cat([edge_index.reshape(-1), source_nodes, target_nodes])).to(torch.long)
+    stride = max_node + 1
+
+    edge_keys = edge_index[0].to(torch.long) * stride + edge_index[1].to(torch.long)
+    query_keys = source_nodes.to(torch.long) * stride + target_nodes.to(torch.long)
+
+    sorted_query_keys, sorted_query_idx = torch.sort(query_keys)
+    insertion_idx = torch.searchsorted(sorted_query_keys, edge_keys)
+    in_bounds = insertion_idx < sorted_query_keys.numel()
+
+    matching_edge_idx = torch.nonzero(
+        in_bounds & (sorted_query_keys[insertion_idx.clamp(max=sorted_query_keys.numel() - 1)] == edge_keys),
+        as_tuple=False,
+    ).flatten()
+
+    if matching_edge_idx.numel() == 0:
         print(edge_index)
         print(source_nodes)
         print(target_nodes)
-    
-    return vals_pos[counts_pos > 1][:,1], vals_pos[counts_pos > 1][:,0]
+        empty = torch.empty(0, dtype=torch.long, device=edge_index.device)
+        return empty, empty
+
+    matching_query_idx = sorted_query_idx[insertion_idx[matching_edge_idx]]
+    return matching_edge_idx, matching_query_idx
 
 
 def get_edges(data, all_data, dataset_type):
