@@ -196,11 +196,23 @@ def create_hpo_to_node_idx_dict(node_df, hp_old_new_map):
 
     return hpo_to_idx_dict
 
-def create_gene_to_node_idx_dict(args, node_df):
+def create_gene_to_node_idx_dict(args, node_df, allow_missing_gene_map=False):
     ensembl_node_map = project_config.KG_DIR / Path(str(args.node_map).split('.txt')[0] + '_ensembl_ids.txt')
     if ensembl_node_map.exists():
         node_df = pd.read_csv(ensembl_node_map, sep='\t')
     else:
+        if allow_missing_gene_map:
+            if ENSEMBL_TO_IDX_DICT_FILE.exists() and GENE_SYMBOL_TO_IDX_DICT_FILE.exists():
+                print(
+                    "Warning: skipping Ensembl gene lookup rebuild because "
+                    f"{ensembl_node_map} is missing; preserving existing gene lookup pickle files."
+                )
+                return node_df, None, None
+            raise FileNotFoundError(
+                f"{ensembl_node_map} is missing and gene lookup pickle files do not already exist. "
+                "Restore KG_node_map_ensembl_ids.txt or the original ensembl/gene_symbol lookup pickle files."
+            )
+
         print('Generating ensembl_ids for KG')
         preprocessor = preprocess.Preprocessor() #NOTE: raw data to perform preprocessing is missing from dataverse, but we provide the already processed files for our KG
 
@@ -379,7 +391,9 @@ def main():
         args, load_patients=not args.rebuild_lookup_only, allow_missing_metadata=args.rebuild_lookup_only
     )
     hpo_to_idx_dict = create_hpo_to_node_idx_dict(node_df, hp_map_dict)
-    node_df, gene_symbol_to_idx_dict, ensembl_to_idx_dict = create_gene_to_node_idx_dict(args,node_df)
+    node_df, gene_symbol_to_idx_dict, ensembl_to_idx_dict = create_gene_to_node_idx_dict(
+        args, node_df, allow_missing_gene_map=args.rebuild_lookup_only
+    )
     mondo_to_node_idx_dict = create_mondo_to_node_idx_dict(node_df, mondo_to_hpo_dict)
     map_diseases_to_orphanet(node_df, mondo_orphanet_map)
 
@@ -387,8 +401,12 @@ def main():
         print("Rebuilt KG lookup files:")
         print(f"  {HPO_TO_IDX_DICT_FILE}")
         print(f"  {HPO_TO_NAME_DICT_FILE}")
-        print(f"  {ENSEMBL_TO_IDX_DICT_FILE}")
-        print(f"  {GENE_SYMBOL_TO_IDX_DICT_FILE}")
+        if ensembl_to_idx_dict is not None:
+            print(f"  {ENSEMBL_TO_IDX_DICT_FILE}")
+            print(f"  {GENE_SYMBOL_TO_IDX_DICT_FILE}")
+        else:
+            print(f"  preserved existing {ENSEMBL_TO_IDX_DICT_FILE}")
+            print(f"  preserved existing {GENE_SYMBOL_TO_IDX_DICT_FILE}")
         print(f"  {MONDO_TO_IDX_DICT_FILE}")
         print(f"  {MONDO_TO_NAME_DICT_FILE}")
         print(f"  {ORPHANET_TO_MONDO_DICT}")
