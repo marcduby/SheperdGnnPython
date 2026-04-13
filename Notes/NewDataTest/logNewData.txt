@@ -1,9 +1,81 @@
 
 
+- 20260412 - train 
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --aug_gene_w 0 \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/HuAndPigeanHpData/checkpoints/pretrain.ckpt
 
+
+
+- 20260410 - pretrain
+  python pretrain.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --save_dir /tmp/shepherd-pigean-pretrain \
+    --max_epochs 200
+
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_acc                                               0.6387401231657119
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_ap                                                0.7144618460996669
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_f1                                                0.6387401231657119
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_roc                                               0.7095647027607809
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_acc                                             0.6330996141000067
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_ap                                              0.701139290677075
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_f1                                              0.6330996141000067
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_roc                                             0.6909593775752192
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_acc                                         0.669128515239452
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_ap                                          0.7522144370766755
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_f1                                          0.669128515239452
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_roc                                         0.7097988085230511
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_acc                                       0.6566721847034339
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_ap                                        0.7264117984371864
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_f1                                        0.6566721847034339
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_roc                                       0.6862055941915768
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_acc                                            0.7270558649437753
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_ap                                             0.8270040101928998
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_f1                                             0.7270558649437753
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_roc                                            0.8295390474262885
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_acc                                                    0.7796700354656777
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_ap                                                     0.882764375853607
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_f1                                                     0.7796700354656777
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_roc                                                    0.8627104134521343
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_acc                                                  0.7432194411507732
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_ap                                                   0.8252286885853602
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_f1                                                   0.7432194411507732
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_roc                                                  0.8258855098066262
+             edge_metrics/node.pathway;protein_pathway;gene/protein_test_acc                                                  0.8194851072752936
+              edge_metrics/node.pathway;protein_pathway;gene/protein_test_ap                                                  0.8903422838552321
+              edge_metrics/node.pathway;protein_pathway;gene/protein_test_f1                                                  0.8194851072752936
+             edge_metrics/node.pathway;protein_pathway;gene/protein_test_roc                                                  0.901321511551345
+                                     node_curr_epoch                                                                                200.0
+                                      test/node_acc                                                                           0.7146987680953474
+                                       test/node_ap                                                                           0.7950001998425089
+                                   test/node_batch_loss                                                                       0.5176891684532166
+                                       test/node_f1                                                                           0.7146987680953474
+                                      test/node_roc                                                                           0.7938326814852881
+                                   test/node_total_acc                                                                        0.7122302056464589
+                                    test/node_total_ap                                                                        0.7910060556615831
+                                    test/node_total_f1                                                                        0.7122302056464589
+                                   test/node_total_roc                                                                        0.7862677580197804
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+wandb:
 
 - 20260410 - get train/val spl
-
+Aggregation type:  mean
+spl_matrix shape:  (105220, 15874)
+min SPL: 1.0, max SPL: 11.0 from genes to phenotypes
+There are 37190 patients in the dataset
+spl_matrix (105220, 15874)
+  0%|                                                                                                                                                                                             | 0/37190 [00:00<?, ?it/s]/home/ubuntu/Code/VirtualEnv/sheperd_31012/lib/python3.10/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/home/ubuntu/Code/VirtualEnv/sheperd_31012/lib/python3.10/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 37190/37190 [2:46:08<00:00,  3.73it/s]
+Max avg SPL from gene to phenotypes: -1
+Min avg SPL from gene to phenotypes: 1000
 
 - 20260410 - get shortest path 
 (sheperd_31012) ubuntu@ip-172-31-27-85:~/Code/SheperdGnnCodex/data_prep/shortest_paths$ python3 shortest_paths.py

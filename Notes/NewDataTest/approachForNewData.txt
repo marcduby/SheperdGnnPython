@@ -16,10 +16,35 @@
 
 
 
+Comands used for custom pigean training set:
+--------------------------------------------
+
+- add new edges
+  python3 src/python/create_edge_file.py \
+    --mode add-pigean-kg-edges \
+    --gene-edge-list /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/gene_edge_list.txt \
+    --kg-node-map /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/KG_node_map.txt \
+    --kg-edgelist /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/HU_original_KG_edgelist_mask.txt \
+    --out /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask.txt \
+    --train-frac 0.8 \
+    --val-frac 0.2 \
+    --test-frac 0.0 \
+    --seed 33
 
 
-Commands used in reverse order:
--------------------------------
+Environment: 
+------------
+- pigean gene
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
+export WANDB_MODE=offline
+
+- original data  
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
+export WANDB_MODE=offline
+
+
+Commands used in reverse order - training original data:
+--------------------------------------------------------
 
 - predict
 
@@ -32,6 +57,18 @@ Commands used in reverse order:
     --node_map KG_node_map.txt \
     --patient_data my_data \
     --run_type causal_gene_discovery \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt \
+    --aug_gene_w 0 \
+    --batch_size 8 \
+    --neighbor_sampler_size 25 \
+    --sparse_sample 50
+
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --aug_gene_w 0 \
     --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/OriginalFromHU/checkpoints/pretrain.ckpt
 
 - copy pre train checkpoint
