@@ -1,10 +1,19 @@
 
 
 - environments
-  - pigean gene data
+  - dev 
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+export WANDB_MODE=offline
 
+  - pigean gene data
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
+export WANDB_MODE=offline
+
+  - original HU data
 
 - 20260412 - train 
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
+export WANDB_MODE=offline
   python train.py \
     --edgelist KG_edgelist_mask.txt \
     --node_map KG_node_map.txt \

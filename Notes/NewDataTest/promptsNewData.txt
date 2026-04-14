@@ -1,5 +1,11 @@
 
 
+20260408 - appending pigean gene edges for training
+/Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg
+modify the 
+
+
+20260406 - create new edge file
 take the file /Users/mduby/Data/Broad/PortalAI/Sheperd/DccPigeanData/all.gene_stats.large.gt1.out 
 extract the gene/trait links from HP phenotypes of format HP_6000501_Ruffled_acrosome and 
 create a tab delimited /Users/mduby/Data/Broad/PortalAI/Sheperd/DccPigeanData/gene_edge_list.txt file 
