@@ -97,9 +97,21 @@ Min avg SPL from gene to phenotypes: 1000
   python3 add_spl_to_patients.py \
     --save_prefix train_val \
     --agg_type mean \
-    --only_train_val_data
+    --only_train_val_data 
 
 after fix:
+Aggregation type:  mean
+spl_matrix shape:  (105220, 15874)
+min SPL: 1.0, max SPL: 11.0 from genes to phenotypes
+There are 37190 patients in the dataset
+spl_matrix (105220, 15874)
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 37190/37190 [4:15:33<00:00,  2.43it/s]
+Max avg SPL from gene to phenotypes: 6.333333492279053
+Min avg SPL from gene to phenotypes: 1.0
+
+
+after verification of hpo and eng ids
+(sheperd_31012) ubuntu@ip-172-31-27-85:~/Code/SheperdGnnCodex/data_prep/shortest_paths$   python3 add_spl_to_patients.py \
     --save_prefix train_val \
     --agg_type mean \
     --only_train_val_data
@@ -108,7 +120,7 @@ spl_matrix shape:  (105220, 15874)
 min SPL: 1.0, max SPL: 11.0 from genes to phenotypes
 There are 37190 patients in the dataset
 spl_matrix (105220, 15874)
-100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 37190/37190 [4:15:33<00:00,  2.43it/s]
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 37190/37190 [4:14:05<00:00,  2.44it/s]
 Max avg SPL from gene to phenotypes: 6.333333492279053
 Min avg SPL from gene to phenotypes: 1.0
 
