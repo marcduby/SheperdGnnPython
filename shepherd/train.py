@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 # Pytorch lightning
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import CSVLogger, WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 # W&B
@@ -81,9 +81,32 @@ def parse_args():
     parser.add_argument('--best_ckpt', type=str, default=None, help='Name of the best performing checkpoint')
     
     parser.add_argument('--use_wandb', type=bool, default=True)
+    parser.add_argument('--log_dir', type=str, default=None, help='Directory for writing CSV/W&B logs')
 
     args = parser.parse_args()
     return args
+
+
+def build_loggers(run_name, log_dir, wandb_project_name, use_wandb=True, resume_id=None):
+    log_dir.mkdir(parents=True, exist_ok=True)
+    csv_root = log_dir / 'csv'
+    csv_root.mkdir(parents=True, exist_ok=True)
+    csv_logger = CSVLogger(save_dir=str(csv_root), name=run_name)
+
+    loggers = [csv_logger]
+    if use_wandb:
+        wandb_root = log_dir / 'wandb'
+        wandb_root.mkdir(parents=True, exist_ok=True)
+        wandb_logger = WandbLogger(
+            name=run_name,
+            project=wandb_project_name,
+            entity='rare_disease_dx',
+            save_dir=str(wandb_root),
+            id=resume_id or "_".join(run_name.split(":")),
+            resume=resume_id or "allow",
+        )
+        loggers.append(wandb_logger)
+    return loggers
 
 
 def load_patient_datasets(hparams, inference=False):
@@ -220,6 +243,8 @@ def get_model(args, hparams, node_hparams, all_data, edge_attr_dict, n_nodes, lo
 
 def train(args, hparams):
     print('Training Model', flush=True)
+    log_dir = Path(args.log_dir) if args.log_dir else project_config.PROJECT_DIR / 'logs' / hparams['model_type']
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Hyperparameters
     node_hparams = get_pretrain_hparams(args, combined=True)
@@ -242,7 +267,7 @@ def train(args, hparams):
         if ":" in args.resume: # colons are not allowed in ID/resume name
             resume_id = "_".join(args.resume.split(":"))
         run_name = args.resume
-        wandb_logger = WandbLogger(run_name, project=hparams['wandb_project_name'], entity='rare_disease_dx', save_dir=hparams['wandb_save_dir'], id=resume_id, resume=resume_id)
+        loggers = build_loggers(run_name, log_dir, hparams['wandb_project_name'], use_wandb=args.use_wandb, resume_id=resume_id)
         
         #add run name to hparams dict
         hparams['run_name'] = run_name
@@ -259,8 +284,7 @@ def train(args, hparams):
         run_name = "{}_val_{}".format(curr_time, val_data).replace('patients', 'pats') 
         run_name = run_name + f'_seed={args.seed}'
         run_name = run_name.replace('5_candidates_mapped_only', '5cand_map').replace('8.9.21_kgsolved_manual_baylor_nobgm_distractor_genes', 'manual').replace('patient_disease_NCA', 'pd_NCA').replace('_distractor', '')
-        wandb_logger = WandbLogger(name=run_name, project=hparams['wandb_project_name'], entity='rare_disease_dx', save_dir=hparams['wandb_save_dir'],
-                        id="_".join(run_name.split(":")), resume="allow") 
+        loggers = build_loggers(run_name, log_dir, hparams['wandb_project_name'], use_wandb=args.use_wandb)
         
         #add run name to hparams dict
         print('Run name', run_name)
@@ -296,7 +320,9 @@ def train(args, hparams):
 
     # log gradients with logger
     print('wandb logger watch')
-    wandb_logger.watch(comb_patient_model, log='all')
+    for logger in loggers:
+        if isinstance(logger, WandbLogger):
+            logger.watch(comb_patient_model, log='all')
 
     #initialize trainer
     if hparams['debug']: 
@@ -308,7 +334,7 @@ def train(args, hparams):
         limit_val_batches=1.0
 
     print('initialize trainer')
-    patient_trainer = pl.Trainer(logger=wandb_logger, 
+    patient_trainer = pl.Trainer(logger=loggers, 
                                 max_epochs=hparams['max_epochs'], 
                                 callbacks=[patient_checkpoint_callback],
                                 profiler=hparams['profiler'],

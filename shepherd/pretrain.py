@@ -14,7 +14,7 @@ import torch.nn as nn
 
 # Pytorch Lightning
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import CSVLogger, WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
 # Pytorch Geo
@@ -41,6 +41,7 @@ def parse_args():
     parser.add_argument("--edgelist", type=str, default=None, help="File with edge list")
     parser.add_argument("--node_map", type=str, default=None, help="File with node list")
     parser.add_argument('--save_dir', type=str, default=None, help='Directory for saving files')
+    parser.add_argument('--log_dir', type=str, default=None, help='Directory for writing CSV/W&B logs')
     
     # Tunable parameters
     parser.add_argument('--nfeat', type=int, default=2048, help='Dimension of embedding layer')
@@ -64,6 +65,28 @@ def parse_args():
     return args
 
 
+def build_loggers(run_name, log_dir, use_wandb=True, resume_id=None):
+    log_dir.mkdir(parents=True, exist_ok=True)
+    csv_root = log_dir / 'csv'
+    csv_root.mkdir(parents=True, exist_ok=True)
+    csv_logger = CSVLogger(save_dir=str(csv_root), name=run_name)
+
+    loggers = [csv_logger]
+    if use_wandb:
+        wandb_root = log_dir / 'wandb'
+        wandb_root.mkdir(parents=True, exist_ok=True)
+        wandb_logger = WandbLogger(
+            name=run_name,
+            project='kg-train',
+            entity='rare_disease_dx',
+            save_dir=str(wandb_root),
+            id=resume_id or "_".join(run_name.split(":")),
+            resume=resume_id or "allow",
+        )
+        loggers.append(wandb_logger)
+    return loggers
+
+
 def get_dataloaders(hparams, all_data):
     print('get dataloaders')
     train_dataloader = NeighborSampler('train', all_data.edge_index[:,all_data.train_mask], all_data.edge_index[:,all_data.train_mask], sizes = hparams['neighbor_sampler_sizes'], batch_size = hparams['batch_size'], shuffle = True, num_workers=hparams['num_workers'], do_filter_edges=hparams['filter_edges'])
@@ -73,6 +96,8 @@ def get_dataloaders(hparams, all_data):
 
 
 def train(args, hparams):
+    log_dir = Path(args.log_dir) if args.log_dir else Path(args.save_dir) / 'logs'
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Seed
     pl.seed_everything(hparams['seed'])
@@ -84,20 +109,24 @@ def train(args, hparams):
     if args.resume != "":
         if ":" in args.resume: # colons are not allowed in ID/resume name
             resume_id = "_".join(args.resume.split(":"))
+        else:
+            resume_id = args.resume
         run_name = args.resume
-        wandb_logger = WandbLogger(run_name, project='kg-train', entity='rare_disease_dx', save_dir=hparams['wandb_save_dir'], id=resume_id, resume=resume_id)
+        loggers = build_loggers(run_name, log_dir, resume_id=resume_id)
         model = NodeEmbeder.load_from_checkpoint(checkpoint_path=str(Path(args.save_dir) / 'checkpoints' /  args.best_ckpt), 
                                                  all_data=all_data, edge_attr_dict=edge_attr_dict, 
                                                  num_nodes=len(nodes["node_idx"].unique()), combined_training=False) 
     else:
         curr_time = datetime.now().strftime("%H:%M:%S")
         run_name = f"{curr_time}_run"
-        wandb_logger = WandbLogger(run_name, project='kg-train', entity='rare_disease_dx', save_dir=hparams['wandb_save_dir'], id="_".join(run_name.split(":")), resume="allow")
+        loggers = build_loggers(run_name, log_dir)
         model = NodeEmbeder(all_data, edge_attr_dict, hp_dict=hparams, num_nodes=len(nodes["node_idx"].unique()), combined_training=False)
 
     checkpoint_callback = ModelCheckpoint(monitor='val/node_total_acc', dirpath=Path(args.save_dir) / 'checkpoints', filename=f'{run_name}' + '_{epoch}', save_top_k=1, mode='max')
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    wandb_logger.watch(model, log='all')
+    for logger in loggers:
+        if isinstance(logger, WandbLogger):
+            logger.watch(model, log='all')
 
     if hparams['debug']:
         limit_train_batches = 1
@@ -109,7 +138,7 @@ def train(args, hparams):
         limit_val_batches = 1.0
         limit_test_batches = 1.0
 
-    trainer = pl.Trainer(logger=wandb_logger, 
+    trainer = pl.Trainer(logger=loggers, 
                          max_epochs=hparams['max_epochs'], 
                          callbacks=[checkpoint_callback, lr_monitor], 
                          gradient_clip_val=hparams['gradclip'],
