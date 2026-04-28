@@ -27,6 +27,12 @@ export WANDB_MODE=offline
     --sparse_sample 50
 
 
+- 20260410 - fix data errors
+ubuntu@ip-172-31-27-85:~/Data/Sheperd/HuAndPigeanHpData/knowledge_graph/8.9.21_kg$
+ubuntu@ip-172-31-27-85:~/Data/Sheperd/HuAndPigeanHpData/knowledge_graph/8.9.21_kg$ cp ../../../OriginalFromHU/knowledge_graph/8.9.21_kg/ensembl_to_idx_dict_8.9.21_kg.pkl .
+ubuntu@ip-172-31-27-85:~/Data/Sheperd/HuAndPigeanHpData/knowledge_graph/8.9.21_kg$ pwd
+/home/ubuntu/Data/Sheperd/HuAndPigeanHpData/knowledge_graph/8.9.21_kg
+
 
 - 20260410 - pretrain
   python pretrain.py \
