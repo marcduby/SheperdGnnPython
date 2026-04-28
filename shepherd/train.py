@@ -74,6 +74,7 @@ def parse_args():
     parser.add_argument('--kappa', type=float, default=0.3, help='Kappa (Only used for combined model with link prediction loss)')
     parser.add_argument('--seed', default=33, type=int)
     parser.add_argument('--batch_size', default=64, type=int) 
+    parser.add_argument('--max_epochs', default=None, type=int, help='Override training max epochs')
     
     # Resume / run inference with best checkpoint
     parser.add_argument('--resume', default="", type=str)
@@ -245,6 +246,8 @@ def train(args, hparams):
     print('Training Model', flush=True)
     log_dir = Path(args.log_dir) if args.log_dir else project_config.PROJECT_DIR / 'logs' / hparams['model_type']
     log_dir.mkdir(parents=True, exist_ok=True)
+    if args.max_epochs is not None:
+        hparams['max_epochs'] = args.max_epochs
 
     # Hyperparameters
     node_hparams = get_pretrain_hparams(args, combined=True)
