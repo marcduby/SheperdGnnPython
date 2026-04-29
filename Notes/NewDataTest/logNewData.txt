@@ -3,13 +3,33 @@
 - environments
   - dev 
 export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
 export WANDB_MODE=offline
 
   - pigean gene data
 export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
+
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
 export WANDB_MODE=offline
 
   - original HU data
+
+
+- 2026028 - train to test 
+  python train.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --patient_data my_data \
+    --run_type causal_gene_discovery \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/HuAndPigeanHpData/checkpoints/pretrain.ckpt \
+    --aug_gene_w 0 \
+    --batch_size 8 \
+    --neighbor_sampler_size 25 \
+    --sparse_sample 50 \
+    --max_epochs 20 \
+    --log_dir /home/ubuntu/Data/Sheperd/HuAndPigeanHpData/checkpoints/logs_train    
+
 
 - 20260412 - train 
 export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
