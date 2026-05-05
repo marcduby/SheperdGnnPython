@@ -286,7 +286,9 @@ class CombinedGPAligner(pl.LightningModule):
 
 
     def inference(self, batch, batch_idx):
-        outputs, gat_attn = self.node_model.predict(self.all_data)
+        # Use the sampled subgraph carried by the batch instead of embedding the
+        # full KG at inference time. This keeps prediction feasible on large KGs.
+        outputs, gat_attn = self.node_model.forward(batch.n_id, batch.adjs)
         pad_outputs = torch.cat([torch.zeros(1, outputs.size(1), device=outputs.device), outputs])
         t1 = time.time()
 

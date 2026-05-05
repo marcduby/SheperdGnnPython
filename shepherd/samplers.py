@@ -528,19 +528,18 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
             if len(candidate_gene_node_idx[0]) > 0:
                 data['batch_cand_gene_nid'] = pad_sequence(candidate_gene_node_idx, batch_first=True, padding_value=0) 
 
-        # Convert KG node IDs to batch IDs
-        # When performing inference (i.e., predict.py), use the original node IDs because the full KG is used in forward pass of node model
-        if self.dataset_type != "predict":
-            data['batch_pheno_nid']  = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_pheno_nid']))
-            if len(candidate_gene_node_idx[0]) > 0:
-                data['batch_cand_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_cand_gene_nid']))
-            if len(correct_genes_node_idx[0]) > 0:
-                data['batch_corr_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_corr_gene_nid']))
-            if self.use_diseases:
-                data['batch_disease_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_disease_nid']))
-                data['batch_cand_disease_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_cand_disease_nid']))
-            if 'augment_genes' in self.hparams and self.hparams['augment_genes']:
-                data['batch_sim_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_sim_gene_nid']))
+        # Convert KG node IDs to batch-local IDs so downstream models can use
+        # sampled subgraph embeddings instead of materializing the full KG.
+        data['batch_pheno_nid']  = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_pheno_nid']))
+        if len(candidate_gene_node_idx[0]) > 0:
+            data['batch_cand_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_cand_gene_nid']))
+        if len(correct_genes_node_idx[0]) > 0:
+            data['batch_corr_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_corr_gene_nid']))
+        if self.use_diseases:
+            data['batch_disease_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_disease_nid']))
+            data['batch_cand_disease_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_cand_disease_nid']))
+        if 'augment_genes' in self.hparams and self.hparams['augment_genes']:
+            data['batch_sim_gene_nid'] = torch.LongTensor(np.vectorize(node2batch.get)(data['batch_sim_gene_nid']))
         return data
 
     def get_candidate_diseases(self, disease_node_idx, candidate_gene_node_idx):
