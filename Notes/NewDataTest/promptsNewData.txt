@@ -1,5 +1,18 @@
 
 
+20260504 - get gene set edge file
+using the /Users/mduby/Data/Broad/PortalAI/Sheperd/DccPigeanData directory as the base for the data 
+add an option to the src/python/create_edge_file.py similar to the pigean-gene option but that would 
+read in a GO gene set and HP phenotype association file all.gene_set_GO_HP_large.out and 
+create a gene set and phenotype association file names gene_set_edge_list.txt similar to the gene phenotype 
+association file gene_edge_list.txt. 
+the file should be tab delimited and contain the columns hpo_idx, go_idx, hpo_id, go_id, trait_name, gene_set_name.
+the hpo_idx and go_idx should match values in the KG_node_map.txt node_idx value for the given entity, and the hpo_id and gene_set_id match the node_id.
+use the KG_node_map.txt to recconcile the gene set and phenotype node data. 
+drop any association rows where you cannot recconcile either the gene set or the phenotype
+
+
+
 20260408 - appending pigean gene edges for training
 /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanHpData/knowledge_graph/1.1.0_kg
 modify the 

@@ -16,7 +16,29 @@ export WANDB_MODE=offline
   - original HU data
 
 
-- 2026028 - train to test 
+- 20260504 - creating gene sets/phenotypes association files
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+  python3 src/python/create_edge_file.py \
+    --mode pigean-go-hp \
+    --src $SHEPHERD_DATA_DIR/../DccPigeanData/all.gene_set_GO_HP_large.out \
+    --kg-node-map $SHEPHERD_DATA_DIR/knowledge_graph/8.9.21_kg/KG_node_map.txt \
+    --out $$SHEPHERD_DATA_DIR/../DccPigeanData/gene_set_edge_list.txt
+
+
+- 20260505 - predict on data
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+export WANDB_MODE=offline
+
+  python predict.py \
+    --run_type causal_gene_discovery \
+    --patient_data my_data \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --saved_node_embeddings_path $SHEPHERD_DATA_DIR/checkpoints/pretrain.ckpt \
+    --best_ckpt $SHEPHERD_DATA_DIR/checkpoints/20260404trainModel.ckpt
+
+
+- 20260428 - train to test 
   python train.py \
     --edgelist KG_edgelist_mask.txt \
     --node_map KG_node_map.txt \

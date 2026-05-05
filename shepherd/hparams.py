@@ -217,10 +217,10 @@ def get_predict_hparams(args):
                'time': False,
                'log_gpu_memory': False,
                'debug': False,
-
-               'augment_genes': True,
+               'alpha': 0,
+               'augment_genes': False,
                'n_sim_genes': 3,
-               'aug_gene_w': 0.5,
+               'aug_gene_w': 0.0,
 
                'wandb_save_dir' : project_config.PROJECT_DIR / 'wandb',
                'saved_checkpoint_path': project_config.PROJECT_DIR  / f'{args.saved_node_embeddings_path}',
