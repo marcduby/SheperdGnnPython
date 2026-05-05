@@ -78,6 +78,7 @@ def parse_args():
     parser.add_argument('--run_type', choices=["causal_gene_discovery", "disease_characterization", "patients_like_me"], type=str)
     parser.add_argument('--saved_node_embeddings_path', type=str, default=None, help='Path to pretrained model checkpoint')
     parser.add_argument('--best_ckpt', type=str, default=None, help='Name of the best performing checkpoint')
+    parser.add_argument('--batch_size', type=int, default=16, help='Prediction batch size')
     args = parser.parse_args()
     return args
 
@@ -87,6 +88,7 @@ def predict(args):
     
     # Hyperparameters
     hparams = get_predict_hparams(args)
+    hparams['n_gpus'] = 1 if torch.cuda.is_available() else 0
 
     # Seed
     pl.seed_everything(hparams['seed'])
@@ -108,7 +110,7 @@ def predict(args):
     
     dataset = PatientDataset(project_config.PROJECT_DIR / 'patients' / hparams['test_data'], time=hparams['time'])
     print(f'There are {len(dataset)} patients in the test dataset')
-    hparams.update({'inference_batch_size': len(dataset)})
+    hparams.update({'inference_batch_size': min(args.batch_size, len(dataset))})
     print('batch size: ', hparams['inference_batch_size'])
     # Get dataloader
     nid_to_spl_dict = {nid: idx for idx, nid in enumerate(nodes[nodes["node_type"] == "gene/protein"]["node_idx"].tolist())}
