@@ -249,9 +249,9 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
     def __init__(self, dataset_type: str, edge_index: Union[Tensor, SparseTensor], 
                  sample_edge_index: Union[Tensor, SparseTensor],
                  sizes: List[int], 
-                 patient_dataset,
-                 all_edge_attributes,
-                 n_nodes: int,
+                 patient_dataset=None,
+                 all_edge_attributes=None,
+                 n_nodes: int = None,
                  relevant_node_idx = None,
                  do_filter_edges: Optional[bool] = False,
                  num_nodes: Optional[int] = None, 
@@ -272,7 +272,13 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
 
                  hparams=None,
                  transform: Callable = None, 
+                 dataset=None,
                  **kwargs):
+
+        if dataset is None:
+            dataset = patient_dataset
+        if dataset is None:
+            raise ValueError("PatientNeighborSampler requires a dataset")
 
         edge_index = edge_index.to('cpu')
         sample_edge_index = sample_edge_index.to('cpu')
@@ -283,6 +289,10 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
 
         if 'collate_fn' in kwargs:
             del kwargs['collate_fn']
+        if 'dataset' in kwargs:
+            del kwargs['dataset']
+        if 'patient_dataset' in kwargs:
+            del kwargs['patient_dataset']
 
         # Save for Pytorch Lightning...
         self.do_filter_edges = do_filter_edges
@@ -294,7 +304,7 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
         self.sparse_sample = sparse_sample
         self.edge_index = edge_index #always train edge index
         self.sample_edge_index = sample_edge_index # depends on train/val/test
-        self.patient_dataset = patient_dataset
+        self.patient_dataset = dataset
         self.num_nodes = num_nodes
         self.train_phenotype_counter = train_phenotype_counter
         self.train_gene_counter = train_gene_counter
