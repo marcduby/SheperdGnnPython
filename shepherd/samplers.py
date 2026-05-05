@@ -287,6 +287,7 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
         self.relevant_node_idx = relevant_node_idx
         self.n_nodes = n_nodes
         self.all_edge_attr = all_edge_attributes
+        self.all_edge_attributes = all_edge_attributes
         self.dataset_type = dataset_type
         self.sparse_sample = sparse_sample
         self.edge_index = edge_index #always train edge index
@@ -696,5 +697,4 @@ class PatientNeighborSampler(torch.utils.data.DataLoader):
 
     def __repr__(self):
         return '{}(sizes={})'.format(self.__class__.__name__, self.sizes)
-
 
