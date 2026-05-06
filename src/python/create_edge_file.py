@@ -7,6 +7,10 @@ import re
 
 hp_pattern = re.compile(r'^(HP)_(\d{7})_')
 
+
+def normalize_name(value: str):
+    return re.sub(r'[^a-z0-9]+', '_', value.strip().lower()).strip('_')
+
 # TO CREATE READEABLE GENE/TRAIT FILE
 #
 #   python3 src/python/create_edge_file.py \
@@ -31,7 +35,7 @@ hp_pattern = re.compile(r'^(HP)_(\d{7})_')
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Create edge files from source datasets.")
-    parser.add_argument("--mode", required=True, choices=["pigean-gene", "add-pigean-kg-edges"], help="Edge file creation mode.")
+    parser.add_argument("--mode", required=True, choices=["pigean-gene", "pigean-go-hp", "add-pigean-kg-edges"], help="Edge file creation mode.")
     parser.add_argument("--src", help="Input tab-delimited gene stats file.")
     parser.add_argument("--gene-edge-list", help="Input tab-delimited gene edge list from pigean-gene mode.")
     parser.add_argument("--kg-node-map", required=True, help="KG node map file used to resolve node IDs.")
@@ -85,6 +89,29 @@ def load_kg_node_indexes(kg_node_map: Path):
     return hpo_to_idx, ncbi_gene_to_idx
 
 
+def load_hpo_and_go_node_maps(kg_node_map: Path):
+    hpo_map = {}
+    go_map = {}
+    with kg_node_map.open(newline='') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            node_type = row['node_type']
+            if node_type == 'effect/phenotype':
+                hpo_accession = f"HP:{int(row['node_id']):07d}"
+                hpo_map[hpo_accession] = {
+                    'node_idx': row['node_idx'].strip(),
+                    'node_id': row['node_id'].strip(),
+                    'node_name': row['node_name'].strip(),
+                }
+            elif node_type in ('biological_process', 'molecular_function', 'cellular_component'):
+                go_map[normalize_name(row['node_name'])] = {
+                    'node_idx': row['node_idx'].strip(),
+                    'node_id': row['node_id'].strip(),
+                    'node_name': row['node_name'].strip(),
+                }
+    return hpo_map, go_map
+
+
 def validate_split(train_frac: float, val_frac: float, test_frac: float):
     total = train_frac + val_frac + test_frac
     if abs(total - 1.0) > 1e-9:
@@ -135,6 +162,68 @@ def create_pigean_gene_edge_file(src: Path, kg_node_map: Path, out: Path):
             rows += 1
 
     print(f'wrote {rows} rows to {out}')
+
+
+def create_pigean_go_hp_edge_file(src: Path, kg_node_map: Path, out: Path):
+    hpo_map, go_map = load_hpo_and_go_node_maps(kg_node_map)
+
+    seen = set()
+    rows = 0
+    dropped_missing_hpo = 0
+    dropped_missing_go = 0
+    with src.open(newline='') as f, out.open('w', newline='') as g:
+        reader = csv.DictReader(
+            f,
+            delimiter='\t',
+            fieldnames=[
+                'Trait_Internal',
+                'Trait_Group',
+                'Trait',
+                'Trait_Category',
+                'Gene_Set',
+                'Gene_Set_Source',
+                'Direct',
+                'Indirect',
+            ],
+        )
+        writer = csv.writer(g, delimiter='\t', lineterminator='\n')
+        writer.writerow(['hpo_idx', 'go_idx', 'hpo_id', 'go_id', 'trait_name', 'gene_set_name'])
+        for record in reader:
+            trait_internal = record['Trait_Internal']
+            match = hp_pattern.match(trait_internal)
+            if not match:
+                continue
+
+            hpo_accession = f'{match.group(1)}:{match.group(2)}'
+            hpo_node = hpo_map.get(hpo_accession)
+            if hpo_node is None:
+                dropped_missing_hpo += 1
+                continue
+
+            gene_set_name = record['Gene_Set'].strip()
+            go_node = go_map.get(normalize_name(gene_set_name))
+            if go_node is None:
+                dropped_missing_go += 1
+                continue
+
+            trait_name = record['Trait'].strip()
+            key = (
+                hpo_node['node_idx'],
+                go_node['node_idx'],
+                hpo_node['node_id'],
+                go_node['node_id'],
+                trait_name,
+                gene_set_name,
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            writer.writerow(key)
+            rows += 1
+
+    print(f'wrote {rows} rows to {out}')
+    print(f'dropped {dropped_missing_hpo} rows with unreconciled HPO nodes')
+    print(f'dropped {dropped_missing_go} rows with unreconciled GO nodes')
 
 
 def add_pigean_kg_edges(
@@ -224,6 +313,11 @@ def main():
             raise ValueError("--src is required for pigean-gene mode")
         src = Path(args.src)
         create_pigean_gene_edge_file(src, kg_node_map, out)
+    elif args.mode == "pigean-go-hp":
+        if not args.src:
+            raise ValueError("--src is required for pigean-go-hp mode")
+        src = Path(args.src)
+        create_pigean_go_hp_edge_file(src, kg_node_map, out)
     elif args.mode == "add-pigean-kg-edges":
         if not args.gene_edge_list:
             raise ValueError("--gene-edge-list is required for add-pigean-kg-edges mode")
