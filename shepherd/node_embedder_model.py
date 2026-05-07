@@ -245,16 +245,25 @@ class NodeEmbeder(pl.LightningModule):
         # Calculate metrics
         if self.loss_type == "max-margin":
             metric_pred = torch.sigmoid(raw_pred)
-            self.logger.experiment.log({f'{dataset_type}/node_predicted_probs': wandb.Histogram(metric_pred.cpu().detach().numpy())})
+            self._log_experiment_artifact(
+                {f'{dataset_type}/node_predicted_probs': wandb.Histogram(metric_pred.cpu().detach().numpy())}
+            )
         else: metric_pred = pred
         roc_score, ap_score, acc, f1 = calc_metrics(metric_pred.cpu().detach().numpy(), link_labels.cpu().detach().numpy(), self.pred_threshold)
-        self.logger.experiment.log({f'{dataset_type}/node_roc_curve': plot_roc_curve(metric_pred.cpu().detach().numpy(), link_labels.cpu().detach().numpy())})
+        self._log_experiment_artifact(
+            {f'{dataset_type}/node_roc_curve': plot_roc_curve(metric_pred.cpu().detach().numpy(), link_labels.cpu().detach().numpy())}
+        )
         
         t4 = time.time()
         if self.hparams.hp_dict['time']:
             print(f'It took {tm-ts:0.2f}s to get batched data, {te-tm:0.2f}s to get edges, {t1-t0:0.2f}s to complete forward pass, {t2-t1:0.2f}s to decode, {t3-t2:0.2f}s to calc loss, and {t4-t3:0.2f}s to calc other metrics.')
 
         return data, loss, pred, link_labels, roc_score, ap_score, acc, f1
+
+    def _log_experiment_artifact(self, payload):
+        experiment = getattr(self.logger, "experiment", None)
+        if experiment is not None and hasattr(experiment, "log"):
+            experiment.log(payload)
 
     def training_step(self, data, data_idx):
         data, loss, pred, link_labels, roc_score, ap_score, acc, f1 = self._step(data, 'train')
