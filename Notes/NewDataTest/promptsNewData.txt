@@ -1,5 +1,16 @@
 
 
+20260506 - add in new geneset/trait data from file to edge mask 
+using the data files in the /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneSetHpData/knowledge_graph/1.1.0_kg directory
+add a mode to the src/python/create_edge_file.py script that takes in the 
+gene_set_edge_list.txt and adds only the edges not present 
+yet to the KG_edgelist_mask.txt file
+use the hpo_idx and go_idx from the file for the edge file x_idx and y_idx values
+make sure the resulting edge file only has unique edges. split the new added rows 
+with 0.8 as train and 0.2 as val; do not add any as test rows. make all file locations be parameters in 
+the script as well as the tran/val/test split of the new rows
+
+
 20260504 - get gene set edge file
 using the /Users/mduby/Data/Broad/PortalAI/Sheperd/DccPigeanData directory as the base for the data 
 add an option to the src/python/create_edge_file.py similar to the pigean-gene option but that would 
@@ -7,10 +18,16 @@ read in a GO gene set and HP phenotype association file all.gene_set_GO_HP_large
 create a gene set and phenotype association file names gene_set_edge_list.txt similar to the gene phenotype 
 association file gene_edge_list.txt. 
 the file should be tab delimited and contain the columns hpo_idx, go_idx, hpo_id, go_id, trait_name, gene_set_name.
-the hpo_idx and go_idx should match values in the KG_node_map.txt node_idx value for the given entity, and the hpo_id and gene_set_id match the node_id.
+the hpo_idx and go_idx should match values in the KG_node_map.txt node_idx value for the given entity, 
+and the hpo_id and gene_set_id should match the node_id.
 use the KG_node_map.txt to recconcile the gene set and phenotype node data. 
 drop any association rows where you cannot recconcile either the gene set or the phenotype
 
+
+20260420 - add in new edge gene/trait data from file to edge Mask
+add a mode to the scritp that takes in the gene_edge_list.txt and adds only the edges not present yet to the KG_edgelist_mask.txt file; refernce the x_idx and y_idx from the KG_node_map.txt
+  file. make sure the resulting edge file only has unique edges. split the new added rows with 0.8 as train and 0.2 as val; do not add any as test rows. make all file locations be parameters in
+  the script as well as the tran/val/test spli of the new rows
 
 
 20260408 - appending pigean gene edges for training

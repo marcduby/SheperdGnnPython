@@ -36,10 +36,16 @@ def preprocess_graph(args):
                       'gene/protein;disease_protein;disease',
                       'gene/protein;protein_molfunc;molecular_function',
                       'molecular_function;protein_molfunc;gene/protein',
+                      'effect/phenotype;phenotype_molfunc;molecular_function',
+                      'molecular_function;phenotype_molfunc;effect/phenotype',
                       'gene/protein;protein_cellcomp;cellular_component',
                       'cellular_component;protein_cellcomp;gene/protein',
+                      'effect/phenotype;phenotype_cellcomp;cellular_component',
+                      'cellular_component;phenotype_cellcomp;effect/phenotype',
                       'gene/protein;protein_bioprocess;biological_process',
                       'biological_process;protein_bioprocess;gene/protein',
+                      'effect/phenotype;phenotype_bioprocess;biological_process',
+                      'biological_process;phenotype_bioprocess;effect/phenotype',
                       'biological_process;bioprocess_bioprocess;biological_process',
                       'biological_process;bioprocess_bioprocess_rev;biological_process',
                       'molecular_function;molfunc_molfunc;molecular_function',
@@ -69,4 +75,3 @@ def preprocess_graph(args):
     # Create data object
     data = Data(edge_index = edge_index, edge_attr = edge_attr, train_mask = train_mask, val_mask = val_mask, test_mask = test_mask)
     return data, edge_attr_to_idx_dict, nodes
-

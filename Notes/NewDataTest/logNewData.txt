@@ -7,13 +7,30 @@ export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
 export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
 export WANDB_MODE=offline
 
-  - pigean gene data
-export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
-
+  - pigean gene data + original
 export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanHpData
 export WANDB_MODE=offline
 
   - original HU data
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/OriginalFromHU
+export WANDB_MODE=offline
+
+  - pigean gene set data + HU original 
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGenesetHpData
+export WANDB_MODE=offline
+
+
+- 20260506 - adding pigean gene set trait rows to original HU edge file
+export DATA_DIR_SHEP=/Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneSetHpData/knowledge_graph/1.1.0_kg
+  python3 src/python/create_edge_file.py \
+    --mode add-pigean-go-hp-kg-edges \
+    --gene-set-edge-list $DATA_DIR_SHEP/gene_set_edge_list.txt \
+    --kg-node-map $DATA_DIR_SHEP/KG_node_map.txt \
+    --kg-edgelist $DATA_DIR_SHEP/KG_edgelist_mask.txt \
+    --out $DATA_DIR_SHEP/KG_edgelist_mask_go_hp.txt \
+    --train-frac 0.8 \
+    --val-frac 0.2 \
+    --test-frac 0.0
 
 
 - 20260504 - creating gene sets/phenotypes association files
@@ -22,11 +39,10 @@ export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
     --mode pigean-go-hp \
     --src $SHEPHERD_DATA_DIR/../DccPigeanData/all.gene_set_GO_HP_large.out \
     --kg-node-map $SHEPHERD_DATA_DIR/knowledge_graph/8.9.21_kg/KG_node_map.txt \
-    --out $$SHEPHERD_DATA_DIR/../DccPigeanData/gene_set_edge_list.txt
+    --out $SHEPHERD_DATA_DIR/../DccPigeanData/gene_set_edge_list.txt
 
 
 - 20260505 - predict on data
-export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
 export WANDB_MODE=offline
 
   python predict.py \
@@ -35,7 +51,8 @@ export WANDB_MODE=offline
     --edgelist KG_edgelist_mask.txt \
     --node_map KG_node_map.txt \
     --saved_node_embeddings_path $SHEPHERD_DATA_DIR/checkpoints/pretrain.ckpt \
-    --best_ckpt $SHEPHERD_DATA_DIR/checkpoints/20260404trainModel.ckpt
+    --best_ckpt $SHEPHERD_DATA_DIR/checkpoints/20260417trained.ckpt \
+    --batch_size 8
 
 
 - 20260428 - train to test 
@@ -44,13 +61,13 @@ export WANDB_MODE=offline
     --node_map KG_node_map.txt \
     --patient_data my_data \
     --run_type causal_gene_discovery \
-    --saved_node_embeddings_path $SHEPHERD_DATA_DIR/checkpoints/pretrain.ckpt \
+    --saved_node_embeddings_path /home/ubuntu/Data/Sheperd/HuAndPigeanHpData/checkpoints/pretrain.ckpt \
     --aug_gene_w 0 \
     --batch_size 8 \
     --neighbor_sampler_size 25 \
     --sparse_sample 50 \
     --max_epochs 20 \
-    --log_dir $SHEPHERD_DATA_DIR/checkpoints/logs_train    
+    --log_dir /home/ubuntu/Data/Sheperd/HuAndPigeanHpData/checkpoints/logs_train    
 
 
 - 20260412 - train 

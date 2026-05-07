@@ -1,0 +1,156 @@
+
+
+
+- 20260507 - pretrain
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGenesetHpData
+export WANDB_MODE=offline
+
+  python pretrain.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --save_dir /tmp/shepherd-pigean-geneset-pretrain \
+    --max_epochs 200
+
+
+- 20260506 - spl for train/val data
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGenesetHpData
+export WANDB_MODE=offline
+
+  python3 add_spl_to_patients.py \
+    --save_prefix train_val \
+    --agg_type mean \
+    --only_train_val_data 
+
+Max avg SPL from gene to phenotypes: 6.5
+Min avg SPL from gene to phenotypes: 1.0
+
+
+- 20260506 - shortest path
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGenesetHpData
+export WANDB_MODE=offline
+
+
+- 20260506 - adding pigean gene set trait rows to original HU edge file
+export DATA_DIR_SHEP=/Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneSetHpData/knowledge_graph/1.1.0_kg
+  python3 src/python/create_edge_file.py \
+    --mode add-pigean-go-hp-kg-edges \
+    --gene-set-edge-list $DATA_DIR_SHEP/gene_set_edge_list.txt \
+    --kg-node-map $DATA_DIR_SHEP/KG_node_map.txt \
+    --kg-edgelist $DATA_DIR_SHEP/KG_edgelist_mask.txt \
+    --out $DATA_DIR_SHEP/KG_edgelist_mask_go_hp.txt \
+    --train-frac 0.8 \
+    --val-frac 0.2 \
+    --test-frac 0.0
+
+
+- 20260504 - creating gene sets/phenotypes association files
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+  python3 src/python/create_edge_file.py \
+    --mode pigean-go-hp \
+    --src $SHEPHERD_DATA_DIR/../DccPigeanData/all.gene_set_GO_HP_large.out \
+    --kg-node-map $SHEPHERD_DATA_DIR/knowledge_graph/8.9.21_kg/KG_node_map.txt \
+    --out $SHEPHERD_DATA_DIR/../DccPigeanData/gene_set_edge_list.txt
+
+
+
+New relations in the second list
+New relation	Count
+biological_process;phenotype_bioprocess;effect/phenotype	769
+cellular_component;phenotype_cellcomp;effect/phenotype	515
+effect/phenotype;phenotype_bioprocess;biological_process	769
+effect/phenotype;phenotype_cellcomp;cellular_component	515
+
+(sheperdgnn_310) mduby (md_gpu_sheperd_codex *) SheperdGnnPython $ python3 src/python/data/summarize_kg_edgelist.py $DATA_DIR_SHEP/KG_edgelist_mask_go_hp.txt
+File: /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneSetHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask_go_hp.txt
+Total rows: 3243374
+
+Mask counts:
+train	2594712
+val	324576
+test	324086
+
+- NEW
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;phenotype_bioprocess;effect/phenotype	769
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;phenotype_cellcomp;effect/phenotype	515
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_bioprocess;biological_process	769
+effect/phenotype;phenotype_cellcomp;cellular_component	515
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	535452
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	535452
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+
+- OLD 
+(sheperdgnn_310) mduby (md_gpu_sheperd_codex *) SheperdGnnPython $ python3 src/python/data/summarize_kg_edgelist.py /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/knowledge_graph/8.9.21_kg/KG_edgelist_mask.txt 
+File: /Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU/knowledge_graph/8.9.21_kg/KG_edgelist_mask.txt
+Total rows: 3356548
+
+Mask counts:
+train	2633904
+val	361250
+test	361394
+
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	593323
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	593323
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+
+
+
+
+
