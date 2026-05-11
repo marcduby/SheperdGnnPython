@@ -35,9 +35,20 @@ def normalize_name(value: str):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Create edge files from source datasets.")
-    parser.add_argument("--mode", required=True, choices=["pigean-gene", "pigean-go-hp", "add-pigean-kg-edges"], help="Edge file creation mode.")
+    parser.add_argument(
+        "--mode",
+        required=True,
+        choices=[
+            "pigean-gene",
+            "pigean-go-hp",
+            "add-pigean-kg-edges",
+            "add-pigean-go-hp-kg-edges",
+        ],
+        help="Edge file creation mode.",
+    )
     parser.add_argument("--src", help="Input tab-delimited gene stats file.")
     parser.add_argument("--gene-edge-list", help="Input tab-delimited gene edge list from pigean-gene mode.")
+    parser.add_argument("--gene-set-edge-list", help="Input tab-delimited gene set edge list from pigean-go-hp mode.")
     parser.add_argument("--kg-node-map", required=True, help="KG node map file used to resolve node IDs.")
     parser.add_argument("--kg-edgelist", help="Input KG_edgelist_mask.txt path.")
     parser.add_argument("--out", required=True, help="Output edge list path.")
@@ -110,6 +121,29 @@ def load_hpo_and_go_node_maps(kg_node_map: Path):
                     'node_name': row['node_name'].strip(),
                 }
     return hpo_map, go_map
+
+
+def load_node_type_by_idx(kg_node_map: Path):
+    node_type_by_idx = {}
+    with kg_node_map.open(newline='') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            node_type_by_idx[row['node_idx'].strip()] = row['node_type'].strip()
+    return node_type_by_idx
+
+
+def relation_for_go_node_type(go_node_type: str):
+    relation_name_by_type = {
+        'biological_process': 'phenotype_bioprocess',
+        'molecular_function': 'phenotype_molfunc',
+        'cellular_component': 'phenotype_cellcomp',
+    }
+    relation_name = relation_name_by_type.get(go_node_type)
+    if relation_name is None:
+        return None
+    forward = f'effect/phenotype;{relation_name};{go_node_type}'
+    reverse = f'{go_node_type};{relation_name};effect/phenotype'
+    return forward, reverse
 
 
 def validate_split(train_frac: float, val_frac: float, test_frac: float):
@@ -303,6 +337,93 @@ def add_pigean_kg_edges(
     print(f'skipped {skipped_missing_nodes} source rows with missing HPO or NCBI gene nodes')
 
 
+def add_pigean_go_hp_kg_edges(
+    gene_set_edge_list: Path,
+    kg_node_map: Path,
+    kg_edgelist: Path,
+    out: Path,
+    train_frac: float,
+    val_frac: float,
+    test_frac: float,
+    seed: int,
+    include_reverse: bool,
+):
+    node_type_by_idx = load_node_type_by_idx(kg_node_map)
+    existing_rows = []
+    edge_keys = set()
+    skipped_duplicate_existing = 0
+
+    with kg_edgelist.open(newline='') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            key = (row['x_idx'], row['y_idx'], row['full_relation'])
+            if key in edge_keys:
+                skipped_duplicate_existing += 1
+                continue
+            edge_keys.add(key)
+            existing_rows.append(row)
+
+    new_rows = []
+    new_edge_keys = set()
+    skipped_missing_nodes = 0
+    skipped_invalid_go_type = 0
+    skipped_existing_edges = 0
+    skipped_duplicate_new = 0
+
+    with gene_set_edge_list.open(newline='') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            hpo_idx = row['hpo_idx'].strip()
+            go_idx = row['go_idx'].strip()
+            hpo_node_type = node_type_by_idx.get(hpo_idx)
+            go_node_type = node_type_by_idx.get(go_idx)
+
+            if hpo_node_type != 'effect/phenotype' or go_node_type is None:
+                skipped_missing_nodes += 1
+                continue
+
+            relations = relation_for_go_node_type(go_node_type)
+            if relations is None:
+                skipped_invalid_go_type += 1
+                continue
+
+            candidate_edges = [
+                (hpo_idx, go_idx, relations[0]),
+            ]
+            if include_reverse:
+                candidate_edges.append((go_idx, hpo_idx, relations[1]))
+
+            for x_idx, y_idx, relation in candidate_edges:
+                key = (x_idx, y_idx, relation)
+                if key in edge_keys:
+                    skipped_existing_edges += 1
+                    continue
+                if key in new_edge_keys:
+                    skipped_duplicate_new += 1
+                    continue
+                new_edge_keys.add(key)
+                new_rows.append({'x_idx': x_idx, 'y_idx': y_idx, 'full_relation': relation})
+
+    masks = split_masks(len(new_rows), train_frac, val_frac, test_frac, seed)
+    for row, mask in zip(new_rows, masks):
+        row['mask'] = mask
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['x_idx', 'y_idx', 'full_relation', 'mask'], delimiter='\t', lineterminator='\n')
+        writer.writeheader()
+        writer.writerows(existing_rows)
+        writer.writerows(new_rows)
+
+    print(f'wrote {len(existing_rows) + len(new_rows)} unique KG rows to {out}')
+    print(f'added {len(new_rows)} new rows from {gene_set_edge_list}')
+    print(f'skipped {skipped_duplicate_existing} duplicate rows from existing KG edge list')
+    print(f'skipped {skipped_existing_edges} source rows already present in KG')
+    print(f'skipped {skipped_duplicate_new} duplicate source rows')
+    print(f'skipped {skipped_missing_nodes} source rows with missing or non-HPO/GO node indexes')
+    print(f'skipped {skipped_invalid_go_type} source rows with unsupported GO node types')
+
+
 def main():
     args = parse_args()
     out = Path(args.out)
@@ -325,6 +446,22 @@ def main():
             raise ValueError("--kg-edgelist is required for add-pigean-kg-edges mode")
         add_pigean_kg_edges(
             gene_edge_list=Path(args.gene_edge_list),
+            kg_node_map=kg_node_map,
+            kg_edgelist=Path(args.kg_edgelist),
+            out=out,
+            train_frac=args.train_frac,
+            val_frac=args.val_frac,
+            test_frac=args.test_frac,
+            seed=args.seed,
+            include_reverse=args.include_reverse,
+        )
+    elif args.mode == "add-pigean-go-hp-kg-edges":
+        if not args.gene_set_edge_list:
+            raise ValueError("--gene-set-edge-list is required for add-pigean-go-hp-kg-edges mode")
+        if not args.kg_edgelist:
+            raise ValueError("--kg-edgelist is required for add-pigean-go-hp-kg-edges mode")
+        add_pigean_go_hp_kg_edges(
+            gene_set_edge_list=Path(args.gene_set_edge_list),
             kg_node_map=kg_node_map,
             kg_edgelist=Path(args.kg_edgelist),
             out=out,
