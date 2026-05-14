@@ -1,0 +1,54 @@
+
+
+
+- 20260512 - predict lab data with original trained model
+export WANDB_MODE=offline
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/LabData
+
+  python predict.py \
+    --run_type causal_gene_discovery \
+    --patient_data my_data \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --saved_node_embeddings_path $SHEPHERD_DATA_DIR/checkpoints/pretrain.ckpt \
+    --best_ckpt $SHEPHERD_DATA_DIR/checkpoints/20260404trainModel.ckpt \
+    --batch_size 8
+
+
+
+
+- get SPL for new data for the saved model (kg graph)
+export WANDB_MODE=offline
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/LabData
+  380  . ../createDirectoryStructure.txt 
+  381  ls -la
+  382  rm *.jsonl
+  383  ls -la
+  384  mv ../../patients_26k_test.jsonl .
+  385  cp patients_26k_test.jsonl test.jsonl
+  386  cd ../../knowledge_graph/
+  387  ls
+  388  cd 8.9.21_kg/
+  389  ls
+  390  ls -la
+  391  cp ../../../OriginalFromHU/knowledge_graph/8.9.21_kg/KG_* .
+  392  cd ../..
+  393  ls
+  394  mkdir checkpoints
+  395  rmdir checkpoints/
+  396  mkdir checkpoints
+  397  cp ../OriginalFromHU/checkpoints/*.ckpt checkpoints/
+  
+
+- 20260513 - copy necessary file for spl and prediction
+
+
+- 20260512 - creating test.jsonl from sample test data
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/OriginalFromHU
+export DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/LabData/Patients
+
+  python3 src/python/data/create_lab_patients_file.py \
+    $DATA_DIR/patients_gene.tsv \
+    $DATA_DIR/patients_hpo.tsv \
+    --output $DATA_DIR/patients_26k_test.jsonl
+

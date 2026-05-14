@@ -1,0 +1,203 @@
+
+
+- environments
+export SHEPHERD_DATA_DIR=/Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneGeneSetHpData
+
+aws
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGeneGenesetHpData
+
+
+- calculate embeddings pretrain 
+export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGeneGenesetHpData
+export WANDB_MODE=offline
+
+  python pretrain.py \
+    --edgelist KG_edgelist_mask.txt \
+    --node_map KG_node_map.txt \
+    --save_dir /tmp/shepherd-pigean-gene-geneset-pretrain \
+    --max_epochs 200
+
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_acc                                               0.6557214861572848
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_ap                                                0.729676859844772
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_f1                                                0.6557214861572848
+           edge_metrics/node.gene/protein;protein_protein;gene/protein_test_roc                                               0.7199184716789175
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_acc                                             0.6162459673173871
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_ap                                              0.6780370616160917
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_f1                                              0.6162459673173871
+         edge_metrics/node.gene/protein;protein_protein_rev;gene/protein_test_roc                                             0.6704720168123304
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_acc                                         0.6670491919661579
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_ap                                          0.7517866952648671
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_f1                                          0.6670491919661579
+     edge_metrics/node.molecular_function;molfunc_molfunc;molecular_function_test_roc                                         0.7227994217721551
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_acc                                       0.6363289589377111
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_ap                                        0.6870851512122842
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_f1                                        0.6363289589377111
+   edge_metrics/node.molecular_function;molfunc_molfunc_rev;molecular_function_test_roc                                       0.6517258422981707
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_acc                                            0.7465519112876106
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_ap                                             0.815131705796093
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_f1                                             0.7465519112876106
+        edge_metrics/node.molecular_function;protein_molfunc;gene/protein_test_roc                                            0.8250075424870302
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_acc                                                    0.7687179552912223
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_ap                                                     0.8708308511488906
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_f1                                                     0.7687179552912223
+                edge_metrics/node.pathway;pathway_pathway;pathway_test_roc                                                    0.8722121796278219
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_acc                                                  0.7828304420596468
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_ap                                                   0.8591472996369173
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_f1                                                   0.7828304420596468
+              edge_metrics/node.pathway;pathway_pathway_rev;pathway_test_roc                                                  0.8463786841723789
+             edge_metrics/node.pathway;protein_pathway;gene/protein_test_acc                                                  0.8042572871335847
+              edge_metrics/node.pathway;protein_pathway;gene/protein_test_ap                                                  0.889539261709601
+              edge_metrics/node.pathway;protein_pathway;gene/protein_test_f1                                                  0.8042572871335847
+             edge_metrics/node.pathway;protein_pathway;gene/protein_test_roc                                                  0.8943104946727277
+                                     node_curr_epoch                                                                                200.0
+                                      test/node_acc                                                                           0.7079733973370973
+                                       test/node_ap                                                                           0.7866110352456294
+                                   test/node_batch_loss                                                                       0.5326988697052002
+                                       test/node_f1                                                                           0.7079733973370973
+                                      test/node_roc                                                                           0.7880148130615924
+                                   test/node_total_acc                                                                        0.7050606218766554
+                                    test/node_total_ap                                                                        0.7824993357302522
+                                    test/node_total_f1                                                                        0.7050606218766554
+                                   test/node_total_roc                                                                        0.7810186156907398
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+wandb:
+wandb: You can sync this run to the cloud by running:
+wandb: wandb sync /tmp/shepherd-pigean-gene-geneset-pretrain/logs/wandb/wandb/offline-run-20260512_140337-14_03_36_run
+wandb: Find logs at: ../../../../../tmp/shepherd-pigean-gene-geneset-pretrain/logs/wandb/wandb/offline-run-20260512_140337-14_03_36_run/logs
+
+
+- calculate SPL files for train/val
+  python3 add_spl_to_patients.py \
+    --save_prefix train_val \
+    --agg_type mean \
+    --only_train_val_data
+
+
+- calculate shortest path
+  238  export SHEPHERD_DATA_DIR=/home/ubuntu/Data/Sheperd/HuAndPigeanGeneGenesetHpData
+  239  python3 shortest_paths.py 
+
+
+- compare the two edge list files
+python3 src/python/data/compare_kg_edgelists.py $DATA_DIR_SHEP/KG_edgelist_mask.txt $DATA_DIR_SHEP/KG_edgelist_mask_eng_go_hp.txt
+
+
+
+- adding gene data to augment original with gene set data 
+export DATA_DIR_SHEP=$SHEPHERD_DATA_DIR/knowledge_graph/1.1.0_kg
+  python3 src/python/create_edge_file.py \
+    --mode add-pigean-kg-edges \
+    --gene-edge-list $DATA_DIR_SHEP/gene_edge_list.txt \
+    --kg-node-map $DATA_DIR_SHEP/KG_node_map.txt \
+    --kg-edgelist $DATA_DIR_SHEP/KG_edgelist_mask.txt \
+    --out $DATA_DIR_SHEP/KG_edgelist_mask_eng_go_hp.txt \
+    --train-frac 0.85 \
+    --val-frac 0.15 \
+    --test-frac 0.0
+
+
+wrote 7038754 unique KG rows to /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneGeneSetHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask_eng_go_hp.txt
+added 3795380 new rows from /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneGeneSetHpData/knowledge_graph/1.1.0_kg/gene_edge_list.txt
+skipped 0 duplicate rows from existing KG edge list
+skipped 408770 source rows already present in KG
+skipped 0 duplicate source rows
+skipped 72370 source rows with missing HPO or NCBI gene nodes
+
+
+- compare pre gene data to data with genes added in 
+python3 src/python/data/summarize_kg_edgelist.py $DATA_DIR_SHEP/KG_edgelist_mask.txt
+
+
+File: /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneGeneSetHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask.txt
+Total rows: 3243374
+
+Mask counts:
+train	2594712
+val	324576
+test	324086
+
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;phenotype_bioprocess;effect/phenotype	769
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;phenotype_cellcomp;effect/phenotype	515
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_bioprocess;biological_process	769
+effect/phenotype;phenotype_cellcomp;cellular_component	515
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	535452
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	535452
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+
+python3 src/python/data/summarize_kg_edgelist.py $DATA_DIR_SHEP/KG_edgelist_mask_eng_go_hp.txt
+File: /Users/mduby/Data/Broad/PortalAI/Sheperd/HuAndPigeanGeneGeneSetHpData/knowledge_graph/1.1.0_kg/KG_edgelist_mask_eng_go_hp.txt
+Total rows: 7038754
+
+Mask counts:
+train	5820785
+val	893883
+test	324086
+
+Full relation counts:
+biological_process;bioprocess_bioprocess;biological_process	52886
+biological_process;bioprocess_bioprocess_rev;biological_process	52886
+biological_process;phenotype_bioprocess;effect/phenotype	769
+biological_process;protein_bioprocess;gene/protein	144805
+cellular_component;cellcomp_cellcomp;cellular_component	4845
+cellular_component;cellcomp_cellcomp_rev;cellular_component	4845
+cellular_component;phenotype_cellcomp;effect/phenotype	515
+cellular_component;protein_cellcomp;gene/protein	83402
+disease;disease_disease;disease	35167
+disease;disease_disease_rev;disease	35167
+disease;disease_phenotype_negative;effect/phenotype	1483
+disease;disease_phenotype_positive;effect/phenotype	204779
+disease;disease_protein;gene/protein	86299
+effect/phenotype;disease_phenotype_negative;disease	1483
+effect/phenotype;disease_phenotype_positive;disease	204779
+effect/phenotype;phenotype_bioprocess;biological_process	769
+effect/phenotype;phenotype_cellcomp;cellular_component	515
+effect/phenotype;phenotype_phenotype;effect/phenotype	21925
+effect/phenotype;phenotype_phenotype_rev;effect/phenotype	21925
+effect/phenotype;phenotype_protein;gene/protein	2433142
+gene/protein;disease_protein;disease	86299
+gene/protein;phenotype_protein;effect/phenotype	2433142
+gene/protein;protein_bioprocess;biological_process	144805
+gene/protein;protein_cellcomp;cellular_component	83402
+gene/protein;protein_molfunc;molecular_function	69530
+gene/protein;protein_pathway;pathway	42646
+gene/protein;protein_protein;gene/protein	321075
+gene/protein;protein_protein_rev;gene/protein	321075
+molecular_function;molfunc_molfunc;molecular_function	13574
+molecular_function;molfunc_molfunc_rev;molecular_function	13574
+molecular_function;protein_molfunc;gene/protein	69530
+pathway;pathway_pathway;pathway	2535
+pathway;pathway_pathway_rev;pathway	2535
+pathway;protein_pathway;gene/protein	42646
+
+
+
+
